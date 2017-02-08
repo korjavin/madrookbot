@@ -48,10 +48,11 @@ func bot_go() {
 
 		fileext := fmt.Sprintf("file_%06d.mp3", update.Message.Chat.ID)
 
-		msg := tgbotapi.NewAudioUpload(update.Message.Chat.ID, fileext)
-		msg.Title = "Voice"
-		msg.Performer = "MadRookBot"
-		msg.MimeType = "audio/mpeg"
+		msg := tgbotapi.NewVoiceUpload(update.Message.Chat.ID, fileext)
+		// msg.Title = "Voice"
+		// msg.Performer = "MadRookBot"
+		// msg.MimeType = "audio/mpeg"
+		msg.Caption = "Voice"
 		msg.ReplyToMessageID = update.Message.MessageID
 		_, err := bot.Send(msg)
 
