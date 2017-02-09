@@ -38,6 +38,33 @@ func bot_go() {
 		if update.Message == nil {
 			continue
 		}
+		if strings.ToUpper(update.Message.Text) == "/HELP" || strings.ToUpper(update.Message.Text) == "/HELP@"+strings.ToUpper(name) {
+			answer := " You can send me any text to read aloud, but please mention me by @" + name
+			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
+			answer += "\n List of voices is accesible by /list command "
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
+		if strings.ToUpper(update.Message.Text) == "/LIST" || strings.ToUpper(update.Message.Text) == "/LIST@"+strings.ToUpper(name) {
+			answer := "List of voices: "
+			for k, _ := range voices {
+				answer += k + ", "
+			}
+			answer = answer[:len(answer)-2]
+			answer += "."
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
 		if !strings.Contains(strings.ToUpper(update.Message.Text), strings.ToUpper(name)) {
 			continue
 		}
