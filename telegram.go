@@ -10,8 +10,13 @@ import (
 )
 
 var (
-	bot *tgbotapi.BotAPI
+	bot  *tgbotapi.BotAPI
+	name string
 )
+
+func init() {
+	name = os.Getenv("BOT_NAME")
+}
 
 func bot_go() {
 	var err error
@@ -33,13 +38,13 @@ func bot_go() {
 		if update.Message == nil {
 			continue
 		}
-		if !strings.Contains(strings.ToUpper(update.Message.Text), "@MADROOKBOT") {
+		if !strings.Contains(strings.ToUpper(update.Message.Text), strings.ToUpper(name)) {
 			continue
 		}
 
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-		text := regexp.MustCompile(`(?i)@madrookbot`).ReplaceAllLiteralString(update.Message.Text, "")
+		text := regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(update.Message.Text, "")
 
 		err = makeAudio(update.Message.Chat.ID, text)
 		if err != nil {
