@@ -9,17 +9,21 @@ import (
 )
 
 var (
-	voice string
+	defaultVoice string
 )
 
 func init() {
-	voice = os.Getenv("BOT_VOICE")
+	defaultVoice = os.Getenv("BOT_VOICE")
 }
 
 func main() {
 	bot_go()
 }
-func makeAudio(id int64, text string) error {
+func makeAudio(id int64, text string, userVoice string) error {
+	voice := defaultVoice
+	if userVoice != "" {
+		voice = userVoice
+	}
 	text = "<speak>" + text + "</speak>"
 	fileext := fmt.Sprintf("file_%06d.mp3", id)
 

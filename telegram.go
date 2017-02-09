@@ -46,7 +46,12 @@ func bot_go() {
 
 		text := regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(update.Message.Text, "")
 
-		err = makeAudio(update.Message.Chat.ID, text)
+		revoice := regexp.MustCompile(`\[(\w+)\]`)
+		voice := revoice.FindString(text)
+		voice = regexp.MustCompile(`\[|\]`).ReplaceAllLiteralString(voice, "")
+		text = revoice.ReplaceAllLiteralString(text, "")
+
+		err = makeAudio(update.Message.Chat.ID, text, voice)
 		if err != nil {
 			log.Printf("Make: %v ", err)
 		}
