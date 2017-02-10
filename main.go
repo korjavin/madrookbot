@@ -11,6 +11,7 @@ import (
 var (
 	defaultVoice string
 	voices       map[string]bool
+	prefs        map[int]string
 )
 
 func init() {
@@ -35,10 +36,15 @@ func init() {
 }
 
 func main() {
+	prefs = make(map[int]string)
+	loadprefs()
 	bot_go()
 }
-func makeAudio(id int64, text string, userVoice string) error {
+func makeAudio(id int64, text string, userVoice string, uid int) error {
 	voice := defaultVoice
+	if val, ok := prefs[uid]; ok {
+		voice = val
+	}
 	if userVoice != "" {
 		if voices[userVoice] {
 			voice = userVoice

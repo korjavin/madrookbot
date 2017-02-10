@@ -41,7 +41,30 @@ func bot_go() {
 		if strings.ToUpper(update.Message.Text) == "/HELP" || strings.ToUpper(update.Message.Text) == "/HELP@"+strings.ToUpper(name) {
 			answer := " You can send me any text to read aloud, but please mention me by @" + name
 			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
-			answer += "\n List of voices is accesible by /list command "
+			answer += "\n /list command for list of accesible voices "
+			answer += "\n /setvoice command for setting default voice (just for you)"
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/SETVOICE") {
+			split := strings.Split(update.Message.Text, " ")
+			answer := ""
+			if len(split) < 2 {
+				answer = "Please choose a voice from the list."
+
+			} else if !voices[split[1]] {
+				answer = "I don't have this voice: " + split[1] + "\n please chose another one from the /list"
+			} else {
+				answer = "Okay I will use the voice " + split[1] + " for your messages! \n You can temporarily overlap this by using  square brackets like [Kendra]"
+				prefs[update.Message.From.ID] = split[1]
+				saveprefs(update.Message.From.ID, split[1])
+			}
+
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, err := bot.Send(msg)
@@ -56,7 +79,9 @@ func bot_go() {
 				answer += k + ", "
 			}
 			answer = answer[:len(answer)-2]
-			answer += "."
+			answer += ". \n"
+			answer += "You can set the voice permanetly by /setvoice command or \n You can  use square brackets like [Joey] to set the voice for one message. \n"
+
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, err := bot.Send(msg)
@@ -78,7 +103,7 @@ func bot_go() {
 		voice = regexp.MustCompile(`\[|\]`).ReplaceAllLiteralString(voice, "")
 		text = revoice.ReplaceAllLiteralString(text, "")
 
-		err = makeAudio(update.Message.Chat.ID, text, voice)
+		err = makeAudio(update.Message.Chat.ID, text, voice, update.Message.From.ID)
 		if err != nil {
 			log.Printf("Make: %v ", err)
 		}
