@@ -50,23 +50,32 @@ func bot_go() {
 				text := update.Message.Text
 				answer := ""
 				if !voices[text] {
-					answer = "Sorry,I don't have this voice: " + text
+					answer = "Sorry,I don't have this voice: " + text + "\n Choose another /setvoice"
 				} else {
-					answer = "Okay I will use the voice " + text + " for your messages! \n You can still overlap voice by using square brackets like [Kendra]"
+					answer = "Okay I will use the voice " + text + " for your messages! \nYou can still overlap voice by using square brackets like [Kendra]"
 					prefs[update.Message.From.ID] = text
 					saveprefs(update.Message.From.ID, text)
 				}
 
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 				msg.ReplyToMessageID = update.Message.MessageID
+
+				msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{true, true}
+
 				_, err := bot.Send(msg)
 				if err != nil {
 					log.Printf("Send: %v ", err)
 				}
 				continue
-
 			}
 
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Sorry, what? Please look at /help ")
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
 		}
 		if strings.ToUpper(update.Message.Text) == "/HELP" || strings.ToUpper(update.Message.Text) == "/HELP@"+strings.ToUpper(name) {
 			answer := " You can send me any text to read aloud, but please mention me by @" + name
