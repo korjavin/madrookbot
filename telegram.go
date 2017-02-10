@@ -32,6 +32,8 @@ func bot_go() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
+	replies := make(map[int]bool)
+
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
@@ -39,13 +41,36 @@ func bot_go() {
 			continue
 		}
 		if update.CallbackQuery != nil {
-			log.Printf("Send: %#v ", update.CallbackQuery)
 			continue
+		}
+		if update.Message.ReplyToMessage != nil {
+			_, ok := replies[update.Message.ReplyToMessage.MessageID]
+			if ok {
+				delete(replies, update.Message.ReplyToMessage.MessageID)
+				text := update.Message.Text
+				answer := ""
+				if !voices[text] {
+					answer = "Sorry,I don't have this voice: " + text
+				} else {
+					answer = "Okay I will use the voice " + text + " for your messages! \n You can still overlap voice by using square brackets like [Kendra]"
+					prefs[update.Message.From.ID] = text
+					saveprefs(update.Message.From.ID, text)
+				}
+
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+				msg.ReplyToMessageID = update.Message.MessageID
+				_, err := bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+				continue
+
+			}
+
 		}
 		if strings.ToUpper(update.Message.Text) == "/HELP" || strings.ToUpper(update.Message.Text) == "/HELP@"+strings.ToUpper(name) {
 			answer := " You can send me any text to read aloud, but please mention me by @" + name
 			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
-			answer += "\n /list command for list of accesible voices "
 			answer += "\n /setvoice command for setting default voice (just for you)"
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
@@ -59,30 +84,30 @@ func bot_go() {
 			split := strings.Split(update.Message.Text, " ")
 			answer := ""
 			if len(split) < 2 {
-				var buttons []tgbotapi.InlineKeyboardButton
+				var buttons []tgbotapi.KeyboardButton
 
 				for k, _ := range voices {
-					buttons = append(buttons, tgbotapi.InlineKeyboardButton{Text: k, CallbackData: &k})
+					buttons = append(buttons, tgbotapi.KeyboardButton{Text: k})
 				}
 				answer = "Please choose a voice from the list."
-				markup := tgbotapi.InlineKeyboardMarkup{
-					InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+				markup := tgbotapi.ReplyKeyboardMarkup{
+					Keyboard: [][]tgbotapi.KeyboardButton{
 						buttons,
 					},
+					OneTimeKeyboard: true,
+					ResizeKeyboard:  true,
+					Selective:       true,
 				}
 
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 				msg.ReplyToMessageID = update.Message.MessageID
+				msg.ReplyMarkup = markup
 				mc, err := bot.Send(msg)
 				if err != nil {
 					log.Printf("Send: %v ", err)
 				}
-				msg1 := tgbotapi.NewEditMessageReplyMarkup(update.Message.Chat.ID, mc.MessageID, markup)
-				mc, err = bot.Send(msg1)
-				if err != nil {
-					log.Printf("Send: %v ", err)
-				}
-				log.Printf("mc: %#v \n", mc)
+				replies[mc.MessageID] = true
+				// log.Printf("Send: %#v ", mc)
 				continue
 
 			} else if !voices[split[1]] {
@@ -101,28 +126,11 @@ func bot_go() {
 			}
 			continue
 		}
-		if strings.ToUpper(update.Message.Text) == "/LIST" || strings.ToUpper(update.Message.Text) == "/LIST@"+strings.ToUpper(name) {
-			answer := "List of voices: "
-			for k, _ := range voices {
-				answer += k + ", "
-			}
-			answer = answer[:len(answer)-2]
-			answer += ". \n"
-			answer += "You can set the voice permanetly by /setvoice command or \n You can  use square brackets like [Joey] to set the voice for one message. \n"
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			continue
-		}
 		if !strings.Contains(strings.ToUpper(update.Message.Text), strings.ToUpper(name)) {
 			continue
 		}
 
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		log.Printf("[%s] %s \n", update.Message.From.UserName, update.Message.Text)
 
 		text := regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(update.Message.Text, "")
 
