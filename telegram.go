@@ -35,7 +35,11 @@ func bot_go() {
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil {
+		if update.Message == nil && update.CallbackQuery == nil {
+			continue
+		}
+		if update.CallbackQuery != nil {
+			log.Printf("Send: %#v ", update.CallbackQuery)
 			continue
 		}
 		if strings.ToUpper(update.Message.Text) == "/HELP" || strings.ToUpper(update.Message.Text) == "/HELP@"+strings.ToUpper(name) {
@@ -55,7 +59,31 @@ func bot_go() {
 			split := strings.Split(update.Message.Text, " ")
 			answer := ""
 			if len(split) < 2 {
+				var buttons []tgbotapi.InlineKeyboardButton
+
+				for k, _ := range voices {
+					buttons = append(buttons, tgbotapi.InlineKeyboardButton{Text: k, CallbackData: &k})
+				}
 				answer = "Please choose a voice from the list."
+				markup := tgbotapi.InlineKeyboardMarkup{
+					InlineKeyboard: [][]tgbotapi.InlineKeyboardButton{
+						buttons,
+					},
+				}
+
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+				msg.ReplyToMessageID = update.Message.MessageID
+				mc, err := bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+				msg1 := tgbotapi.NewEditMessageReplyMarkup(update.Message.Chat.ID, mc.MessageID, markup)
+				mc, err = bot.Send(msg1)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+				log.Printf("mc: %#v \n", mc)
+				continue
 
 			} else if !voices[split[1]] {
 				answer = "I don't have this voice: " + split[1] + "\n please chose another one from the /list"
