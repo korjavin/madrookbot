@@ -69,15 +69,9 @@ func bot_go() {
 				continue
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Sorry, what? Please look at /help ")
-			msg.ReplyToMessageID = update.Message.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
 			continue
 		}
-		if strings.ToUpper(update.Message.Text) == "/HELP" || strings.ToUpper(update.Message.Text) == "/HELP@"+strings.ToUpper(name) {
+		if strings.hasPrefix(strings.ToUpper(update.Message.Text), "/HELP") {
 			answer := " You can send me any text to read aloud, but please mention me by @" + name
 			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
 			answer += "\n /setvoice command for setting default voice (just for you)"
