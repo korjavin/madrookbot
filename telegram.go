@@ -71,10 +71,52 @@ func bot_go() {
 
 			continue
 		}
-		if strings.hasPrefix(strings.ToUpper(update.Message.Text), "/HELP") {
+		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/HELP") {
 			answer := " You can send me any text to read aloud, but please mention me by @" + name
 			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
 			answer += "\n /setvoice command for setting default voice (just for you)"
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/DEFINE") {
+
+			split := strings.Split(update.Message.Text, " ")
+			answer := ""
+			if len(split) < 2 {
+				answer = " Please, use /define term "
+			} else {
+				answer = getDefinition(split[1])
+				if answer == "" {
+					answer = "Sorry, nothing about " + split[1]
+				}
+			}
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/OXFORD") {
+
+			split := strings.Split(update.Message.Text, " ")
+			answer := ""
+			if len(split) < 2 {
+				answer = " Please, use /oxford term "
+			} else {
+				answer = getOxfordDefinition(split[1])
+				if answer == "" {
+					answer = "Sorry, nothing about " + split[1]
+				}
+			}
+
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, err := bot.Send(msg)

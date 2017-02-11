@@ -1,0 +1,49 @@
+package main
+
+import (
+	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
+	"log"
+	"net/http"
+	"strings"
+)
+
+func getDoc(url string) (*html.Node, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+	}
+	req.Header.Set("Accept-Language", "en-US;q=0.8,en;q=0.6")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.100 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	root, err := html.Parse(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return root, nil
+}
+
+func getDefinition(term string) string {
+	text := ""
+	get, err := getDoc("https://www.merriam-webster.com/dictionary/" + term)
+	if err != nil {
+		log.Println(err)
+	} else {
+		doc := goquery.NewDocumentFromNode(get)
+		doc.Find("div.full-def-box:nth-child(5) > div:nth-child(1) > div:nth-child(2) > ol:nth-child(1) > li").Each(func(i int, s *goquery.Selection) {
+			text += strings.TrimSpace(s.Text())
+		})
+		if text == "" {
+			doc.Find("div.card-primary-content:nth-child(3) > ol").Each(func(i int, s *goquery.Selection) {
+				text += strings.TrimSpace(s.Text())
+			})
+
+		}
+
+	}
+	return text
+}
