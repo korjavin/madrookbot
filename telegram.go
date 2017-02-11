@@ -75,6 +75,8 @@ func bot_go() {
 			answer := " You can send me any text to read aloud, but please mention me by @" + name
 			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
 			answer += "\n /setvoice command for setting default voice (just for you)"
+			answer += "\n /define term :  show the definition from Merriam-Webster dictionary"
+			answer += "\n /oxford term :  show the definition from oxford dictionary"
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, err := bot.Send(msg)
@@ -158,7 +160,7 @@ func bot_go() {
 			} else if !voices[split[1]] {
 				answer = "I don't have this voice: " + split[1] + "\n please chose another one from the /list"
 			} else {
-				answer = "Okay I will use the voice " + split[1] + " for your messages! \n You can temporarily overlap this by using  square brackets like [Kendra]"
+				answer = "Okay I will use the voice " + split[1] + " for your messages! \n You can temporarily override this by using  square brackets like [Kendra]"
 				prefs[update.Message.From.ID] = split[1]
 				saveprefs(update.Message.From.ID, split[1])
 			}
