@@ -83,6 +83,7 @@ func bot_go() {
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
+			go sendEvent("command", "help", "")
 			continue
 		}
 		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/DEFINE") {
@@ -95,6 +96,8 @@ func bot_go() {
 				answer = getDefinition(split[1])
 				if answer == "" {
 					answer = "Sorry, nothing about " + split[1]
+				} else {
+					go sendEvent("translation", "define", split[1])
 				}
 			}
 
@@ -116,6 +119,8 @@ func bot_go() {
 				answer = getOxfordDefinition(split[1])
 				if answer == "" {
 					answer = "Sorry, nothing about " + split[1]
+				} else {
+					go sendEvent("translation", "oxford", split[1])
 				}
 			}
 
@@ -163,6 +168,7 @@ func bot_go() {
 				answer = "Okay I will use the voice " + split[1] + " for your messages! \n You can temporarily override this by using  square brackets like [Kendra]"
 				prefs[update.Message.From.ID] = split[1]
 				saveprefs(update.Message.From.ID, split[1])
+				go sendEvent("voice", "set", split[1])
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
@@ -200,6 +206,8 @@ func bot_go() {
 		msg.Caption = "Voice"
 		msg.ReplyToMessageID = update.Message.MessageID
 		_, err := bot.Send(msg)
+
+		go sendEvent("voice", "generate", update.Message.From.UserName)
 
 		if err != nil {
 			log.Printf("Send: %v ", err)
