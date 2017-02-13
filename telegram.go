@@ -51,9 +51,11 @@ func bot_go() {
 				if !voices[text] {
 					answer = "Sorry,I don't have this voice: " + text + "\n Choose another /setvoice"
 				} else {
-					answer = "Okay I will use the voice " + text + " for your messages! \nYou can still overlap voice by using square brackets like [Kendra]"
+					answer = "Okay I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
+					sendAudio(answer, text, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
 					prefs[update.Message.From.ID] = text
 					saveprefs(update.Message.From.ID, text)
+					continue
 				}
 
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
@@ -164,10 +166,12 @@ func bot_go() {
 			} else if !voices[split[1]] {
 				answer = "I don't have this voice: " + split[1] + "\n please chose another one from the /list"
 			} else {
-				answer = "Okay I will use the voice " + split[1] + " for your messages! \n You can temporarily override this by using  square brackets like [Kendra]"
+				answer = "Okay I will use the voice " + split[1] + " for your messages! You can temporarily override this by using square brackets."
+				sendAudio(answer, split[1], update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
 				prefs[update.Message.From.ID] = split[1]
 				saveprefs(update.Message.From.ID, split[1])
 				go sendEvent("voice", "set", split[1])
+				continue
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
@@ -191,21 +195,26 @@ func bot_go() {
 		voice = regexp.MustCompile(`\[|\]`).ReplaceAllLiteralString(voice, "")
 		text = revoice.ReplaceAllLiteralString(text, "")
 
-		err, fileext := makeAudio(text, voice, update.Message.From.ID)
-		if err != nil {
-			log.Printf("Make: %v ", err)
-		}
-
-		msg := tgbotapi.NewVoiceUpload(update.Message.Chat.ID, fileext)
-		msg.Caption = "Voice"
-		msg.ReplyToMessageID = update.Message.MessageID
-		_, err = bot.Send(msg)
-
-		if err != nil {
-			log.Printf("Send: %v ", err)
-		}
-		os.Remove(fileext)
+		sendAudio(text, voice, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
 
 		go sendEvent("voice", "generate", update.Message.From.UserName)
 	}
+}
+func sendAudio(text string, voice string, uid int, cid int64, mid int) {
+	err, fileext := makeAudio(text, voice, uid)
+	if err != nil {
+		log.Printf("Make: %v ", err)
+	}
+
+	msg := tgbotapi.NewVoiceUpload(cid, fileext)
+	msg.Caption = "Voice"
+	if mid != 0 {
+		msg.ReplyToMessageID = mid
+	}
+	_, err = bot.Send(msg)
+
+	if err != nil {
+		log.Printf("Send: %v ", err)
+	}
+	os.Remove(fileext)
 }
