@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -40,7 +40,7 @@ func main() {
 	loadprefs()
 	bot_go()
 }
-func makeAudio(id int64, text string, userVoice string, uid int) error {
+func makeAudio(text string, userVoice string, uid int) (error, string) {
 	voice := defaultVoice
 	if val, ok := prefs[uid]; ok {
 		voice = val
@@ -51,15 +51,21 @@ func makeAudio(id int64, text string, userVoice string, uid int) error {
 		}
 	}
 	text = "<speak>" + text + "</speak>"
-	fileext := fmt.Sprintf("file_%06d.mp3", id)
+	tmpfile, err := ioutil.TempFile("./", "voice")
+	if err != nil {
+		log.Printf("File error: %v", err)
+	} else {
+		defer os.Remove(tmpfile.Name())
+	}
+	fileext := tmpfile.Name() + ".mp3"
 
 	args := "aws polly synthesize-speech --text-type ssml --text " + strconv.Quote(text) + " --output-format mp3 --voice-id " + voice + " " + fileext
 	log.Println(args)
 
 	lsCmd := exec.Command("sh", "-c", args)
-	_, err := lsCmd.Output()
+	_, err = lsCmd.Output()
 	if err != nil {
-		return err
+		return err, ""
 	}
-	return nil
+	return nil, fileext
 }

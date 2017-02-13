@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"gopkg.in/telegram-bot-api.v4"
 	"log"
 	"os"
@@ -192,25 +191,21 @@ func bot_go() {
 		voice = regexp.MustCompile(`\[|\]`).ReplaceAllLiteralString(voice, "")
 		text = revoice.ReplaceAllLiteralString(text, "")
 
-		err = makeAudio(update.Message.Chat.ID, text, voice, update.Message.From.ID)
+		err, fileext := makeAudio(text, voice, update.Message.From.ID)
 		if err != nil {
 			log.Printf("Make: %v ", err)
 		}
 
-		fileext := fmt.Sprintf("file_%06d.mp3", update.Message.Chat.ID)
-
 		msg := tgbotapi.NewVoiceUpload(update.Message.Chat.ID, fileext)
-		// msg.Title = "Voice"
-		// msg.Performer = "MadRookBot"
-		// msg.MimeType = "audio/mpeg"
 		msg.Caption = "Voice"
 		msg.ReplyToMessageID = update.Message.MessageID
-		_, err := bot.Send(msg)
-
-		go sendEvent("voice", "generate", update.Message.From.UserName)
+		_, err = bot.Send(msg)
 
 		if err != nil {
 			log.Printf("Send: %v ", err)
 		}
+		os.Remove(fileext)
+
+		go sendEvent("voice", "generate", update.Message.From.UserName)
 	}
 }
