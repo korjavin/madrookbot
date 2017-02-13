@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 )
 
 const (
-	baseUrl = "https://od-api.oxforddictionaries.com/api/v1"
+	baseURL = "https://od-api.oxforddictionaries.com/api/v1"
 )
 
 var (
@@ -21,7 +22,7 @@ func init() {
 	appKey = os.Getenv("OXFORD_KEY")
 }
 
-type Response struct {
+type response struct {
 	Metadata struct {
 		Provider string `json:"provider"`
 	} `json:"metadata"`
@@ -61,31 +62,34 @@ type Response struct {
 }
 
 func getOxfordDefinition(word string) string {
-	url := baseUrl + "/entries/en/" + word
+	url := baseURL + "/entries/en/" + word
 	bytes, err := getOxfordEndpoint(url)
 	if err != nil {
 		return ""
 	}
-	var r Response
-	json.Unmarshal(bytes, &r)
+	var r response
+
 	answer := ""
-	for _, v := range r.Results {
-		answer += "\n"
-		for _, l := range v.LexicalEntries {
-			for _, e := range l.Entries {
-				for _, s := range e.Senses {
-					for _, d := range s.Definitions {
-						answer += "- " + d + "\n"
-					}
-					for _, e := range s.Examples {
-						answer += "Example: " + e.Text + "\n"
+	err = json.Unmarshal(bytes, &r)
+	if err == nil {
+		for _, v := range r.Results {
+			answer += "\n"
+			for _, l := range v.LexicalEntries {
+				for _, e := range l.Entries {
+					for _, s := range e.Senses {
+						for _, d := range s.Definitions {
+							answer += "- " + d + "\n"
+						}
+						for _, e := range s.Examples {
+							answer += "Example: " + e.Text + "\n"
+						}
 					}
 				}
-			}
 
-			// for _, p := range l.Pronunciations {
-			// 	answer += "Audio: " + p.AudioFile + "\n"
-			// }
+				// for _, p := range l.Pronunciations {
+				// 	answer += "Audio: " + p.AudioFile + "\n"
+				// }
+			}
 		}
 	}
 	if answer != "" {
@@ -105,7 +109,12 @@ func getOxfordEndpoint(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		err := res.Body.Close()
+		if err != nil {
+			log.Printf("body close : %v \n", err)
+		}
+	}()
 	if err != nil {
 		return nil, err
 	}

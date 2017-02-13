@@ -17,7 +17,7 @@ func init() {
 	name = os.Getenv("BOT_NAME")
 }
 
-func bot_go() {
+func botGo() {
 	var err error
 	bot, err = tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
@@ -54,14 +54,17 @@ func bot_go() {
 					answer = "Okay I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
 					sendAudio(answer, text, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
 					prefs[update.Message.From.ID] = text
-					saveprefs(update.Message.From.ID, text)
+					err := saveprefs(update.Message.From.ID, text)
+					if err != nil {
+						log.Printf("Save prefs: %v ", err)
+					}
 					continue
 				}
 
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 				msg.ReplyToMessageID = update.Message.MessageID
 
-				msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{true, true}
+				msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
 
 				_, err := bot.Send(msg)
 				if err != nil {
@@ -139,7 +142,7 @@ func bot_go() {
 			if len(split) < 2 {
 				var buttons []tgbotapi.KeyboardButton
 
-				for k, _ := range voices {
+				for k := range voices {
 					buttons = append(buttons, tgbotapi.KeyboardButton{Text: k})
 				}
 				answer = "Please choose a voice from the list."
@@ -169,7 +172,10 @@ func bot_go() {
 				answer = "Okay I will use the voice " + split[1] + " for your messages! You can temporarily override this by using square brackets."
 				sendAudio(answer, split[1], update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
 				prefs[update.Message.From.ID] = split[1]
-				saveprefs(update.Message.From.ID, split[1])
+				err := saveprefs(update.Message.From.ID, split[1])
+				if err != nil {
+					log.Printf("Saveprefs: %v ", err)
+				}
 				go sendEvent("voice", "set", split[1])
 				continue
 			}
@@ -201,7 +207,7 @@ func bot_go() {
 	}
 }
 func sendAudio(text string, voice string, uid int, cid int64, mid int) {
-	err, fileext := makeAudio(text, voice, uid)
+	fileext, err := makeAudio(text, voice, uid)
 	if err != nil {
 		log.Printf("Make: %v ", err)
 	}
@@ -216,5 +222,8 @@ func sendAudio(text string, voice string, uid int, cid int64, mid int) {
 	if err != nil {
 		log.Printf("Send: %v ", err)
 	}
-	os.Remove(fileext)
+	err = os.Remove(fileext)
+	if err != nil {
+		log.Printf("Can't remove file: %v ", err)
+	}
 }

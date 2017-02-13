@@ -22,13 +22,16 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	db.Update(func(tx *bolt.Tx) error {
+	err = db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("users"))
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
 		return nil
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func loadprefs() error {
@@ -36,7 +39,7 @@ func loadprefs() error {
 
 		b := tx.Bucket([]byte("users"))
 
-		b.ForEach(func(k, v []byte) error {
+		err := b.ForEach(func(k, v []byte) error {
 			// var p Prefs
 			// err := json.Unmarshal(v, &p)
 			// if err != nil {
@@ -46,7 +49,7 @@ func loadprefs() error {
 			prefs[btoi(k)] = string(v)
 			return nil
 		})
-		return nil
+		return err
 	})
 }
 

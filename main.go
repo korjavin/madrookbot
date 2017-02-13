@@ -37,10 +37,13 @@ func init() {
 
 func main() {
 	prefs = make(map[int]string)
-	loadprefs()
-	bot_go()
+	err := loadprefs()
+	if err != nil {
+		log.Printf("Prefs error: %v", err)
+	}
+	botGo()
 }
-func makeAudio(text string, userVoice string, uid int) (error, string) {
+func makeAudio(text string, userVoice string, uid int) (string, error) {
 	voice := defaultVoice
 	if val, ok := prefs[uid]; ok {
 		voice = val
@@ -55,7 +58,12 @@ func makeAudio(text string, userVoice string, uid int) (error, string) {
 	if err != nil {
 		log.Printf("File error: %v", err)
 	} else {
-		defer os.Remove(tmpfile.Name())
+		defer func() {
+			err := os.Remove(tmpfile.Name())
+			if err != nil {
+				log.Printf("File remove error: %v", err)
+			}
+		}()
 	}
 	fileext := tmpfile.Name() + ".mp3"
 
@@ -65,7 +73,7 @@ func makeAudio(text string, userVoice string, uid int) (error, string) {
 	lsCmd := exec.Command("sh", "-c", args)
 	_, err = lsCmd.Output()
 	if err != nil {
-		return err, ""
+		return "", err
 	}
-	return nil, fileext
+	return fileext, nil
 }

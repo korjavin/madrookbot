@@ -19,7 +19,12 @@ func getDoc(url string) (*html.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		err := res.Body.Close()
+		if err != nil {
+			log.Printf("body close %v \n", err)
+		}
+	}()
 	root, err := html.Parse(res.Body)
 	if err != nil {
 		return nil, err
