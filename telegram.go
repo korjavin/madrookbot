@@ -207,6 +207,8 @@ func botGo() {
 	}
 }
 func sendAudio(text string, voice string, uid int, cid int64, mid int) {
+	re := regexp.MustCompile("\\n")
+	text = re.ReplaceAllString(text, " ")
 	fileext, err := makeAudio(text, voice, uid)
 	if err != nil {
 		log.Printf("Make: %v ", err)
