@@ -5,7 +5,7 @@ RUN /usr/bin/pip install --upgrade --user awscli
 RUN ln -s /root/.local/bin/aws /bin/aws
 RUN mkdir /bot
 ADD madrookbot /bot/madrookbot
-ADD aws /root/.aws
+ADD $HOME/.aws /root/.aws
 
 WORKDIR /bot
 ENTRYPOINT ["/bot/madrookbot"]
