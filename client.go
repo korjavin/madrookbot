@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/PuerkitoBio/goquery"
-	"golang.org/x/net/html"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
 func getDoc(url string) (*html.Node, error) {

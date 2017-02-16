@@ -151,7 +151,7 @@ func botGo() {
 			} else {
 				answer = getIdiom(strings.Join(split[1:], "+"))
 				if answer == "" {
-					answer = "Sorry, nothing about " + split[1]
+					answer = "Sorry, nothing about " + strings.Join(split[1:], " ")
 				} else {
 					go sendEvent("translation", "define", split[1])
 				}
