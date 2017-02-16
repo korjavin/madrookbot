@@ -21,7 +21,9 @@ func init() {
 }
 
 func sendEvent(category, action, label string) {
-
+	if client == nil {
+		return
+	}
 	err := client.Send(ga.NewEvent(category, action).Label(label))
 	if err != nil {
 		log.Printf("ga send: %v \n", err)
