@@ -13,16 +13,18 @@ var (
 	name string
 )
 
-func init() {
-	name = os.Getenv("BOT_NAME")
-}
-
 func botGo() {
 	var err error
 	bot, err = tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}
+
+	me, err := bot.GetMe()
+	if err != nil {
+		log.Panic("me: %#v \n", err)
+	}
+	name = me.UserName
 
 	bot.Debug = false
 
