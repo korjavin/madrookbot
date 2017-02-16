@@ -1,11 +1,12 @@
 package main
 
 import (
-	"gopkg.in/telegram-bot-api.v4"
 	"log"
 	"os"
 	"regexp"
 	"strings"
+
+	"gopkg.in/telegram-bot-api.v4"
 )
 
 var (
@@ -34,6 +35,7 @@ func botGo() {
 	u.Timeout = 60
 
 	replies := make(map[int]bool)
+	repliesPrivate := make(map[string]bool)
 
 	updates, err := bot.GetUpdatesChan(u)
 
@@ -43,6 +45,32 @@ func botGo() {
 		}
 		if update.CallbackQuery != nil {
 			continue
+		}
+		if update.Message.Chat.Type == "private" {
+			_, ok := repliesPrivate[update.Message.From.UserName]
+			if ok {
+				delete(repliesPrivate, update.Message.From.UserName)
+				text := update.Message.Text
+				answer := ""
+				if !voices[text] {
+					answer = "Sorry,I don't have this voice: " + text + "\n Choose another /setvoice"
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+					msg.ReplyToMessageID = update.Message.MessageID
+					msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
+					_, err := bot.Send(msg)
+					if err != nil {
+						log.Printf("Send: %v ", err)
+					}
+				} else {
+					answer = "Okay I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
+					sendAudio(answer, text, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
+					prefs[update.Message.From.ID] = text
+					err := saveprefs(update.Message.From.ID, text)
+					if err != nil {
+						log.Printf("Save prefs: %v ", err)
+					}
+				}
+			}
 		}
 		if update.Message.ReplyToMessage != nil {
 			_, ok := replies[update.Message.ReplyToMessage.MessageID]
@@ -164,7 +192,11 @@ func botGo() {
 				if err != nil {
 					log.Printf("Send: %v ", err)
 				}
-				replies[mc.MessageID] = true
+				if update.Message.Chat.Type != "private" {
+					replies[mc.MessageID] = true
+				} else {
+					repliesPrivate[update.Message.From.UserName] = true
+				}
 				// log.Printf("Send: %#v ", mc)
 				continue
 
@@ -217,6 +249,7 @@ func sendAudio(text string, voice string, uid int, cid int64, mid int) {
 	}
 
 	msg := tgbotapi.NewVoiceUpload(cid, fileext)
+	msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
 	msg.Caption = "Voice"
 	if mid != 0 {
 		msg.ReplyToMessageID = mid

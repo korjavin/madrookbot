@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/jpillora/go-ogle-analytics"
 	"log"
 	"os"
+
+	"github.com/jpillora/go-ogle-analytics"
 )
 
 var (
