@@ -1,12 +1,11 @@
 package main
 
 import (
+	"gopkg.in/telegram-bot-api.v4"
 	"log"
 	"os"
 	"regexp"
 	"strings"
-
-	"gopkg.in/telegram-bot-api.v4"
 )
 
 var (
@@ -128,6 +127,29 @@ func botGo() {
 				answer = " Please, use /define term "
 			} else {
 				answer = getDefinition(split[1])
+				if answer == "" {
+					answer = "Sorry, nothing about " + split[1]
+				} else {
+					go sendEvent("translation", "define", split[1])
+				}
+			}
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/IDIOM") {
+
+			split := strings.Split(update.Message.Text, " ")
+			answer := ""
+			if len(split) < 2 {
+				answer = " Please, use /idiom term "
+			} else {
+				answer = getIdiom(strings.Join(split[1:], "+"))
 				if answer == "" {
 					answer = "Sorry, nothing about " + split[1]
 				} else {

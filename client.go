@@ -5,6 +5,7 @@ import (
 	"golang.org/x/net/html"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -32,6 +33,27 @@ func getDoc(url string) (*html.Node, error) {
 	return root, nil
 }
 
+func getIdiom(term string) string {
+	text := ""
+	term = regexp.MustCompile(`\s+`).ReplaceAllLiteralString(term, "+")
+	get, err := getDoc("http://idioms.thefreedictionary.com/" + term)
+	if err != nil {
+		log.Println(err)
+	} else {
+		doc := goquery.NewDocumentFromNode(get)
+		doc.Find(".ds-single").Each(func(i int, s *goquery.Selection) {
+			text += s.Text() + "\n"
+		})
+		if text == "" {
+			doc.Find("#Definition > section:nth-child(1)").Each(func(i int, s *goquery.Selection) {
+				text += s.Text() + "\n"
+			})
+
+		}
+
+	}
+	return text
+}
 func getDefinition(term string) string {
 	text := ""
 	get, err := getDoc("https://www.merriam-webster.com/dictionary/" + term)
