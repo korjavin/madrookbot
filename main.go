@@ -15,7 +15,7 @@ var (
 )
 
 func init() {
-	defaultVoice = os.Getenv("BOT_VOICE")
+	defaultVoice = "Raveena"
 	voices = map[string]bool{
 		"Russell":  true,
 		"Nicole":   true,
