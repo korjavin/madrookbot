@@ -63,11 +63,11 @@ func getDefinition(term string) string {
 	} else {
 		doc := goquery.NewDocumentFromNode(get)
 		doc.Find("div.full-def-box:nth-child(5) > div:nth-child(1) > div:nth-child(2) > ol:nth-child(1) > li").Each(func(i int, s *goquery.Selection) {
-			text += strings.TrimSpace(s.Text())
+			text += strings.TrimSpace(s.Text()) + "\n"
 		})
 		if text == "" {
 			doc.Find("div.card-primary-content:nth-child(3) > ol").Each(func(i int, s *goquery.Selection) {
-				text += strings.TrimSpace(s.Text())
+				text += strings.TrimSpace(s.Text()) + "\n"
 			})
 
 		}
