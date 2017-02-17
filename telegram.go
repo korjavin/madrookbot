@@ -33,8 +33,7 @@ func botGo() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	replies := make(map[int]bool)
-	repliesPrivate := make(map[string]bool)
+	fsms := make(map[int]*dialogue)
 
 	updates, err := bot.GetUpdatesChan(u)
 
@@ -45,51 +44,17 @@ func botGo() {
 		if update.CallbackQuery != nil {
 			continue
 		}
-		if update.Message.Chat.Type == "private" {
-			_, ok := repliesPrivate[update.Message.From.UserName]
-			if ok {
-				delete(repliesPrivate, update.Message.From.UserName)
-				text := update.Message.Text
-				answer := ""
-				if !voices[text] {
-					answer = "Sorry,I don't have this voice: " + text + "\n Choose another /setvoice"
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-					msg.ReplyToMessageID = update.Message.MessageID
-					msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
-					_, err := bot.Send(msg)
-					if err != nil {
-						log.Printf("Send: %v ", err)
-					}
-				} else {
-					answer = "Okay I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
-					sendAudio(answer, text, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
-					prefs[update.Message.From.ID] = text
-					err := saveprefs(update.Message.From.ID, text)
-					if err != nil {
-						log.Printf("Save prefs: %v ", err)
-					}
-				}
-			}
+		if _, ok := fsms[update.Message.From.ID]; !ok {
+			fsms[update.Message.From.ID] = newDialogue(update.Message.From.ID)
 		}
-		if update.Message.ReplyToMessage != nil {
-			_, ok := replies[update.Message.ReplyToMessage.MessageID]
-			if ok {
-				delete(replies, update.Message.ReplyToMessage.MessageID)
-				text := update.Message.Text
-				answer := ""
-				if !voices[text] {
-					answer = "Sorry,I don't have this voice: " + text + "\n Choose another /setvoice"
-				} else {
-					answer = "Okay I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
-					sendAudio(answer, text, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
-					prefs[update.Message.From.ID] = text
-					err := saveprefs(update.Message.From.ID, text)
-					if err != nil {
-						log.Printf("Save prefs: %v ", err)
-					}
-					continue
-				}
+		fsm := fsms[update.Message.From.ID]
+		text := update.Message.Text
 
+		if fsm.state.Is("waitvoice") {
+			answer := ""
+			if !voices[text] {
+				answer = "Sorry,I don't have this voice: '" + text + "', command canceled"
+				fsm.state.Event("cancel")
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 				msg.ReplyToMessageID = update.Message.MessageID
 
@@ -99,17 +64,26 @@ func botGo() {
 				if err != nil {
 					log.Printf("Send: %v ", err)
 				}
-				continue
+			} else {
+				answer = "Okay, Dear " + update.Message.From.FirstName + ", I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
+				sendAudio(answer, text, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
+				prefs[update.Message.From.ID] = text
+				err := saveprefs(update.Message.From.ID, text)
+				if err != nil {
+					log.Printf("Save prefs: %v ", err)
+				}
+				fsm.state.Event("setvoice")
 			}
 
 			continue
 		}
-		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/HELP") {
+		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/HELP") {
 			answer := " You can send me any text to read aloud, but please mention me by @" + name
 			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
 			answer += "\n /setvoice command for setting default voice (just for you)"
 			answer += "\n /define term :  show the definition from Merriam-Webster dictionary"
-			answer += "\n /oxford term :  show the definition from oxford dictionary"
+			answer += "\n /oxford term :  show the definition from Oxford dictionary"
+			answer += "\n /idiom term  :  show the definition from idioms.thefreedictionary.com"
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, err := bot.Send(msg)
@@ -119,12 +93,29 @@ func botGo() {
 			go sendEvent("command", "help", "")
 			continue
 		}
-		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/DEFINE") {
+		if fsm.state.Is("waitterm") {
+			answer := getDefinition(text)
+			if answer == "" {
+				answer = "Sorry, nothing about " + text
+			} else {
+				go sendEvent("translation", "define", text)
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			fsm.state.Event("setterm")
+			continue
+		}
+		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/DEFINE") {
 
-			split := strings.Split(update.Message.Text, " ")
+			split := strings.Split(text, " ")
 			answer := ""
 			if len(split) < 2 {
-				answer = " Please, use /define term "
+				answer = " Please, use send me any text to search in Merriam-Webster dictionary"
+				fsm.state.Event("waitterm")
 			} else {
 				answer = getDefinition(split[1])
 				if answer == "" {
@@ -142,12 +133,29 @@ func botGo() {
 			}
 			continue
 		}
-		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/IDIOM") {
-
-			split := strings.Split(update.Message.Text, " ")
+		if fsm.state.Is("waitidiom") {
+			split := strings.Split(text, " ")
+			answer := getIdiom(strings.Join(split, "+"))
+			if answer == "" {
+				answer = "Sorry, nothing about " + text
+			} else {
+				go sendEvent("translation", "define", text)
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			fsm.state.Event("setterm")
+			continue
+		}
+		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/IDIOM") {
+			split := strings.Split(text, " ")
 			answer := ""
 			if len(split) < 2 {
-				answer = " Please, use /idiom term "
+				answer = " Please send me any text to search in idioms.thefreedictionary.com"
+				fsm.state.Event("waitidiom")
 			} else {
 				answer = getIdiom(strings.Join(split[1:], "+"))
 				if answer == "" {
@@ -165,12 +173,28 @@ func botGo() {
 			}
 			continue
 		}
-		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/OXFORD") {
-
-			split := strings.Split(update.Message.Text, " ")
+		if fsm.state.Is("waitoxford") {
+			answer := getOxfordDefinition(text)
+			if answer == "" {
+				answer = "Sorry, nothing about " + text
+			} else {
+				go sendEvent("translation", "oxford", text)
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			fsm.state.Event("setterm")
+			continue
+		}
+		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/OXFORD") {
+			split := strings.Split(text, " ")
 			answer := ""
 			if len(split) < 2 {
-				answer = " Please, use /oxford term "
+				answer = "Please send me any text to search in the oxford dictionary"
+				fsm.state.Event("waitoxford")
 			} else {
 				answer = getOxfordDefinition(split[1])
 				if answer == "" {
@@ -188,69 +212,40 @@ func botGo() {
 			}
 			continue
 		}
-		if strings.HasPrefix(strings.ToUpper(update.Message.Text), "/SETVOICE") {
-			split := strings.Split(update.Message.Text, " ")
-			answer := ""
-			if len(split) < 2 {
-				var buttons []tgbotapi.KeyboardButton
+		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/SETVOICE") {
+			fsm.state.Event("waitvoice")
 
-				for k := range voices {
-					buttons = append(buttons, tgbotapi.KeyboardButton{Text: k})
-				}
-				answer = "Please choose a voice from the list."
-				markup := tgbotapi.ReplyKeyboardMarkup{
-					Keyboard: [][]tgbotapi.KeyboardButton{
-						buttons,
-					},
-					OneTimeKeyboard: true,
-					ResizeKeyboard:  true,
-					Selective:       true,
-				}
+			var buttons []tgbotapi.KeyboardButton
 
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-				msg.ReplyToMessageID = update.Message.MessageID
-				msg.ReplyMarkup = markup
-				mc, err := bot.Send(msg)
-				if err != nil {
-					log.Printf("Send: %v ", err)
-				}
-				if update.Message.Chat.Type != "private" {
-					replies[mc.MessageID] = true
-				} else {
-					repliesPrivate[update.Message.From.UserName] = true
-				}
-				// log.Printf("Send: %#v ", mc)
-				continue
-
-			} else if !voices[split[1]] {
-				answer = "I don't have this voice: " + split[1] + "\n please chose another one from the /list"
-			} else {
-				answer = "Okay I will use the voice " + split[1] + " for your messages! You can temporarily override this by using square brackets."
-				sendAudio(answer, split[1], update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
-				prefs[update.Message.From.ID] = split[1]
-				err := saveprefs(update.Message.From.ID, split[1])
-				if err != nil {
-					log.Printf("Saveprefs: %v ", err)
-				}
-				go sendEvent("voice", "set", split[1])
-				continue
+			for k := range voices {
+				buttons = append(buttons, tgbotapi.KeyboardButton{Text: k})
+			}
+			answer := "Please choose a voice from the list and send to me."
+			markup := tgbotapi.ReplyKeyboardMarkup{
+				Keyboard: [][]tgbotapi.KeyboardButton{
+					buttons,
+				},
+				OneTimeKeyboard: true,
+				ResizeKeyboard:  true,
+				Selective:       true,
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
+			msg.ReplyMarkup = markup
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
 			continue
 		}
-		if !strings.Contains(strings.ToUpper(update.Message.Text), strings.ToUpper(name)) {
+		if !strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
 			continue
 		}
 
-		log.Printf("[%s] %s \n", update.Message.From.UserName, update.Message.Text)
+		log.Printf("[%s] %s \n", update.Message.From.UserName, text)
 
-		text := regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(update.Message.Text, "")
+		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
 
 		revoice := regexp.MustCompile(`\[(\w+)\]`)
 		voice := revoice.FindString(text)
