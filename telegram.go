@@ -50,7 +50,8 @@ func botGo() {
 		fsm := fsms[update.Message.From.ID]
 		text := update.Message.Text
 
-		if fsm.state.Is("waitvoice") {
+		switch fsm.state.Current() {
+		case "waitvoice":
 			answer := ""
 			if !voices[text] {
 				answer = "Sorry,I don't have this voice: '" + text + "', command canceled"
@@ -74,26 +75,24 @@ func botGo() {
 				}
 				fsm.state.Event("setvoice")
 			}
-
 			continue
-		}
-		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/HELP") {
-			answer := " You can send me any text to read aloud, but please mention me by @" + name
-			answer += "\n If you want me to change my voice send me voice-name in square brackets like [Joey] "
-			answer += "\n /setvoice command for setting default voice (just for you)"
-			answer += "\n /define term :  show the definition from Merriam-Webster dictionary"
-			answer += "\n /oxford term :  show the definition from Oxford dictionary"
-			answer += "\n /idiom term  :  show the definition from idioms.thefreedictionary.com"
+		case "waitidiom":
+			split := strings.Split(text, " ")
+			answer := getIdiom(strings.Join(split, "+"))
+			if answer == "" {
+				answer = "Sorry, nothing about " + text
+			} else {
+				go sendEvent("translation", "define", text)
+			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
-			go sendEvent("command", "help", "")
+			fsm.state.Event("setterm")
 			continue
-		}
-		if fsm.state.Is("waitterm") {
+		case "waitterm":
 			answer := getDefinition(text)
 			if answer == "" {
 				answer = "Sorry, nothing about " + text
@@ -108,8 +107,41 @@ func botGo() {
 			}
 			fsm.state.Event("setterm")
 			continue
+		case "waitoxford":
+			answer := getOxfordDefinition(text)
+			if answer == "" {
+				answer = "Sorry, nothing about " + text
+			} else {
+				go sendEvent("translation", "oxford", text)
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			fsm.state.Event("setterm")
+			continue
+		default:
 		}
-		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/DEFINE") {
+
+		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
+			answer := "You can send me any text to read aloud, but please mention me by @" + name
+			answer += "\nIf you want me to change my voice send me voice-name in square brackets like [Joey] "
+			answer += "\n   /setvoice command for setting default voice (just for you)"
+			answer += "\n   /define term :  show the definition from Merriam-Webster dictionary"
+			answer += "\n   /oxford term :  show the definition from Oxford dictionary"
+			answer += "\n   /idiom term  :  show the definition from idioms.thefreedictionary.com"
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			go sendEvent("command", "help", "")
+			continue
+		}
+		if strings.HasPrefix(strings.ToUpper(text), "/DEFINE") {
 
 			split := strings.Split(text, " ")
 			answer := ""
@@ -133,24 +165,7 @@ func botGo() {
 			}
 			continue
 		}
-		if fsm.state.Is("waitidiom") {
-			split := strings.Split(text, " ")
-			answer := getIdiom(strings.Join(split, "+"))
-			if answer == "" {
-				answer = "Sorry, nothing about " + text
-			} else {
-				go sendEvent("translation", "define", text)
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			fsm.state.Event("setterm")
-			continue
-		}
-		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/IDIOM") {
+		if strings.HasPrefix(strings.ToUpper(text), "/IDIOM") {
 			split := strings.Split(text, " ")
 			answer := ""
 			if len(split) < 2 {
@@ -173,23 +188,7 @@ func botGo() {
 			}
 			continue
 		}
-		if fsm.state.Is("waitoxford") {
-			answer := getOxfordDefinition(text)
-			if answer == "" {
-				answer = "Sorry, nothing about " + text
-			} else {
-				go sendEvent("translation", "oxford", text)
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			fsm.state.Event("setterm")
-			continue
-		}
-		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/OXFORD") {
+		if strings.HasPrefix(strings.ToUpper(text), "/OXFORD") {
 			split := strings.Split(text, " ")
 			answer := ""
 			if len(split) < 2 {
@@ -212,7 +211,7 @@ func botGo() {
 			}
 			continue
 		}
-		if fsm.state.Is("idle") && strings.HasPrefix(strings.ToUpper(text), "/SETVOICE") {
+		if strings.HasPrefix(strings.ToUpper(text), "/SETVOICE") {
 			fsm.state.Event("waitvoice")
 
 			var buttons []tgbotapi.KeyboardButton
