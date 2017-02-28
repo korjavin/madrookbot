@@ -47,10 +47,38 @@ func botGo() {
 		if _, ok := fsms[update.Message.From.ID]; !ok {
 			fsms[update.Message.From.ID] = newDialogue(update.Message.From.ID)
 		}
+
 		fsm := fsms[update.Message.From.ID]
 		text := update.Message.Text
 
 		switch fsm.state.Current() {
+		case "waitaudio":
+			if update.Message.Voice == nil {
+				answer := "Sorry, I don't hear you. Send me a voice or /cancel command"
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+				_, err := bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+			} else {
+				vmess := update.Message.Voice
+				// var vfile tgbotapi.FileConfig
+				// vfile.FileID = vmess.FileID
+				// file, err := bot.GetFile(vfile)
+				// if err != nil {
+				// 	log.Printf("Send: %v ", err)
+				// }
+				// log.Printf("File: %+v ", file)
+				url, err := bot.GetFileDirectURL(vmess.FileID)
+				filename, err := getFile(url)
+
+				answer := "I got file , your link is " + filename
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+				_, err = bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+			}
 		case "waitvoice":
 			answer := ""
 			if !voices[text] {
@@ -232,6 +260,20 @@ func botGo() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
 			msg.ReplyToMessageID = update.Message.MessageID
 			msg.ReplyMarkup = markup
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
+		if strings.HasPrefix(strings.ToUpper(text), "/AUDIO") {
+			fsm.state.Event("audio")
+
+			answer := "Please send me an audio to upload on audioboom."
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)

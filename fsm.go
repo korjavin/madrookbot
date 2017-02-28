@@ -20,8 +20,9 @@ func newDialogue(fid int) *dialogue {
 			{Name: "waitidiom", Src: []string{"idle"}, Dst: "waitidiom"},
 			{Name: "waitterm", Src: []string{"idle"}, Dst: "waitterm"},
 			{Name: "setvoice", Src: []string{"waitvoice"}, Dst: "idle"},
+			{Name: "audio", Src: []string{"idle"}, Dst: "waitaudio"},
 			{Name: "setterm", Src: []string{"waitterm", "waitoxford", "waitidiom"}, Dst: "idle"},
-			{Name: "cancel", Src: []string{"waitoxford", "waitterm", "waitvoice", "idle"}, Dst: "idle"},
+			{Name: "cancel", Src: []string{"waitoxford", "waitterm", "waitvoice", "waitaudio", "idle"}, Dst: "idle"},
 		},
 		fsm.Callbacks{
 			"enter_state": func(e *fsm.Event) { d.enterState(e) },

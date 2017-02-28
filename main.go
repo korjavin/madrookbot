@@ -1,8 +1,10 @@
 package main
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -76,4 +78,15 @@ func makeAudio(text string, userVoice string, uid int) (string, error) {
 		return "", err
 	}
 	return fileext, nil
+}
+func getFile(url string) (string, error) {
+	tmpfile, err := ioutil.TempFile("./", "voice")
+	if err != nil {
+		log.Printf("File error: %v", err)
+	}
+	resp, err := http.Get(url)
+	defer resp.Body.Close()
+	io.Copy(tmpfile, resp.Body)
+	return tmpfile.Name(), nil
+
 }
