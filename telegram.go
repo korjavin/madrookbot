@@ -86,6 +86,7 @@ func botGo() {
 				// log.Printf("File: %+v ", file)
 				url, err := bot.GetFileDirectURL(vmess.FileID)
 				filename, err := getFile(url)
+				uploadFile("")
 
 				answer := "I got file , your link is " + filename
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
