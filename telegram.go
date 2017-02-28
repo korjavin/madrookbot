@@ -51,6 +51,21 @@ func botGo() {
 		fsm := fsms[update.Message.From.ID]
 		text := update.Message.Text
 
+		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
+			fsm.state.Event("cancel")
+
+			answer := "Command canceled."
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+			msg.ReplyToMessageID = update.Message.MessageID
+
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			continue
+		}
+
 		switch fsm.state.Current() {
 		case "waitaudio":
 			if update.Message.Voice == nil {
