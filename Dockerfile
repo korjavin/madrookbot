@@ -3,6 +3,8 @@ RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip python-pip
 RUN /usr/bin/pip install --upgrade --user awscli
 RUN ln -s /root/.local/bin/aws /bin/aws
+RUN echo "Asia/Yekaterinburg" > /etc/timezone
+RUN dpkg-reconfigure -f noninteractive tzdata
 RUN mkdir /bot
 ADD madrookbot /bot/madrookbot
 ADD .aws /root/.aws
