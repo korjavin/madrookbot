@@ -41,26 +41,35 @@ func botGo() {
 	}
 
 	for update := range updates {
-		if update.Message == nil && update.CallbackQuery == nil {
+		// if update.EditedMessage.
+		if update.Message == nil && update.EditedMessage == nil {
 			continue
 		}
-		if update.CallbackQuery != nil {
-			continue
+		var text string
+		var from int
+		var messg *tgbotapi.Message
+
+		if update.Message != nil {
+			messg = update.Message
 		}
-		if _, ok := fsms[update.Message.From.ID]; !ok {
-			fsms[update.Message.From.ID] = newDialogue(update.Message.From.ID)
+		if update.EditedMessage != nil {
+			messg = update.EditedMessage
+		}
+		text = messg.Text
+		from = messg.From.ID
+		if _, ok := fsms[from]; !ok {
+			fsms[from] = newDialogue(from)
 		}
 
-		fsm := fsms[update.Message.From.ID]
-		text := update.Message.Text
+		fsm := fsms[from]
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
 			fsm.state.Event("cancel")
 
 			answer := "Command canceled."
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 
 			_, err := bot.Send(msg)
 			if err != nil {
@@ -71,15 +80,15 @@ func botGo() {
 
 		switch fsm.state.Current() {
 		case "waitaudio":
-			if update.Message.Voice == nil {
+			if messg.Voice == nil {
 				answer := "Sorry, I don't hear you. Send me a voice or /cancel command"
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 				_, err := bot.Send(msg)
 				if err != nil {
 					log.Printf("Send: %v ", err)
 				}
 			} else {
-				vmess := update.Message.Voice
+				vmess := messg.Voice
 				// var vfile tgbotapi.FileConfig
 				// vfile.FileID = vmess.FileID
 				// file, err := bot.GetFile(vfile)
@@ -92,7 +101,7 @@ func botGo() {
 				uploadFile("")
 
 				answer := "I got file , your link is " + filename
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
+				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 				_, err = bot.Send(msg)
 				if err != nil {
 					log.Printf("Send: %v ", err)
@@ -103,8 +112,8 @@ func botGo() {
 			if !voices[text] {
 				answer = "Sorry,I don't have this voice: '" + text + "', command canceled"
 				fsm.state.Event("cancel")
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-				msg.ReplyToMessageID = update.Message.MessageID
+				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+				msg.ReplyToMessageID = messg.MessageID
 
 				msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
 
@@ -113,10 +122,10 @@ func botGo() {
 					log.Printf("Send: %v ", err)
 				}
 			} else {
-				answer = "Okay, Dear " + update.Message.From.FirstName + ", I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
-				sendAudio(answer, text, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
-				prefs[update.Message.From.ID] = text
-				err := saveprefs(update.Message.From.ID, text)
+				answer = "Okay, Dear " + messg.From.FirstName + ", I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
+				sendAudio(answer, text, messg.From.ID, messg.Chat.ID, messg.MessageID)
+				prefs[messg.From.ID] = text
+				err := saveprefs(messg.From.ID, text)
 				if err != nil {
 					log.Printf("Save prefs: %v ", err)
 				}
@@ -131,8 +140,8 @@ func botGo() {
 			} else {
 				go sendEvent("translation", "define", text)
 			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
@@ -146,8 +155,8 @@ func botGo() {
 			} else {
 				go sendEvent("translation", "define", text)
 			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
@@ -157,17 +166,17 @@ func botGo() {
 		case "waitoxford":
 			answer := getOxfordDefinition(text)
 			if answer == "" {
-				answer = "Sorry, nothing about " + text
+				answer = "Sorry, nothing about " + text + "\n You can edit your message or send new \n Or /cancel"
 			} else {
 				go sendEvent("translation", "oxford", text)
+				fsm.state.Event("setterm")
 			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
-			fsm.state.Event("setterm")
 			continue
 		default:
 		}
@@ -179,8 +188,8 @@ func botGo() {
 			answer += "\n   /define term :  show the definition from Merriam-Webster dictionary"
 			answer += "\n   /oxford term :  show the definition from Oxford dictionary"
 			answer += "\n   /idiom term  :  show the definition from idioms.thefreedictionary.com"
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
@@ -204,8 +213,8 @@ func botGo() {
 				}
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
@@ -227,8 +236,8 @@ func botGo() {
 				}
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
@@ -250,8 +259,8 @@ func botGo() {
 				}
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Printf("Send: %v ", err)
@@ -276,8 +285,8 @@ func botGo() {
 				Selective:       true,
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 			msg.ReplyMarkup = markup
 			_, err := bot.Send(msg)
 			if err != nil {
@@ -290,8 +299,8 @@ func botGo() {
 
 			answer := "Please send me an audio to upload on audioboom."
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, answer)
-			msg.ReplyToMessageID = update.Message.MessageID
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
 
 			_, err := bot.Send(msg)
 			if err != nil {
@@ -303,7 +312,7 @@ func botGo() {
 			continue
 		}
 
-		log.Printf("[%s] %s \n", update.Message.From.UserName, text)
+		log.Printf("[%s] %s \n", messg.From.UserName, text)
 
 		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
 
@@ -312,9 +321,9 @@ func botGo() {
 		voice = regexp.MustCompile(`\[|\]`).ReplaceAllLiteralString(voice, "")
 		text = revoice.ReplaceAllLiteralString(text, "")
 
-		sendAudio(text, voice, update.Message.From.ID, update.Message.Chat.ID, update.Message.MessageID)
+		sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
 
-		go sendEvent("voice", "generate", update.Message.From.UserName)
+		go sendEvent("voice", "generate", messg.From.UserName)
 	}
 }
 func sendAudio(text string, voice string, uid int, cid int64, mid int) {
