@@ -20,6 +20,12 @@
   version = "v1.3.1"
 
 [[projects]]
+  name = "github.com/go-telegram-bot-api/telegram-bot-api"
+  packages = ["."]
+  revision = "0a57807db79efce7f6719fbb2c0e0f83fda79aec"
+  version = "v4.6"
+
+[[projects]]
   branch = "master"
   name = "github.com/jpillora/go-ogle-analytics"
   packages = ["."]
@@ -55,15 +61,9 @@
   packages = ["unix"]
   revision = "429f518978ab01db8bb6f44b66785088e7fba58b"
 
-[[projects]]
-  name = "gopkg.in/telegram-bot-api.v4"
-  packages = ["."]
-  revision = "0a57807db79efce7f6719fbb2c0e0f83fda79aec"
-  version = "v4.6"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1a65674e6230f0287c94480b5ad74a693596266b820f30c2a28b57d73a287f35"
+  inputs-digest = "1b95536a5e6925caf47aaed24d319c31fe30231c4e9bb1c432ccf5ee785bd521"
   solver-name = "gps-cdcl"
   solver-version = 1
