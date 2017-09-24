@@ -22,7 +22,7 @@ func botGo() {
 
 	me, err := bot.GetMe()
 	if err != nil {
-		log.Panic("me: %#v \n", err)
+		log.Panicf("me: %#v \n", err)
 	}
 	name = me.UserName
 
@@ -36,6 +36,9 @@ func botGo() {
 	fsms := make(map[int]*dialogue)
 
 	updates, err := bot.GetUpdatesChan(u)
+	if err != nil {
+		log.Printf("[ERROR] getting update channel %v\n", err)
+	}
 
 	for update := range updates {
 		if update.Message == nil && update.CallbackQuery == nil {

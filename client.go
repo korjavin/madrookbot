@@ -13,6 +13,7 @@ import (
 func getDoc(url string) (*html.Node, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Printf("[ERROR]  %v\n", err)
 	}
 	req.Header.Set("Accept-Language", "en-US;q=0.8,en;q=0.6")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.100 Safari/537.36")
@@ -21,6 +22,7 @@ func getDoc(url string) (*html.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[DEBUG] res = %v \n", res)
 	defer func() {
 		err := res.Body.Close()
 		if err != nil {
@@ -55,23 +57,31 @@ func getIdiom(term string) string {
 	}
 	return text
 }
-func getDefinition(term string) string {
-	text := ""
-	get, err := getDoc("https://www.merriam-webster.com/dictionary/" + term)
+func getDefinition(term string) (text string) {
+	// get, err := getDoc("https://www.merriam-webster.com/dictionary/" + term)
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return
+	// }
+	// doc := goquery.NewDocumentFromNode(get)
+	doc, err := goquery.NewDocument("https://www.merriam-webster.com/dictionary/" + term)
 	if err != nil {
-		log.Println(err)
-	} else {
-		doc := goquery.NewDocumentFromNode(get)
-		doc.Find("div.full-def-box:nth-child(5) > div:nth-child(1) > div:nth-child(2) > ol:nth-child(1) > li").Each(func(i int, s *goquery.Selection) {
+		log.Printf("[ERROR]  %v\n", err)
+	}
+
+	// doc.Find("div.vg:nth-child(2) > div:nth-child").Each(func(i int, s *goquery.Selection) {
+	// 	// text = s.Text()
+	// 	text += strings.TrimSpace(s.Text()) + "\n"
+	// })
+	if text == "" {
+		doc.Find("div.vg:nth-child(2) > div  > span > div > span").Each(func(i int, s *goquery.Selection) {
 			text += strings.TrimSpace(s.Text()) + "\n"
 		})
-		if text == "" {
-			doc.Find("div.card-primary-content:nth-child(3) > ol").Each(func(i int, s *goquery.Selection) {
-				text += strings.TrimSpace(s.Text()) + "\n"
-			})
-
-		}
-
+	}
+	if text == "" {
+		doc.Find("div.card-primary-content:nth-child(3) > ol").Each(func(i int, s *goquery.Selection) {
+			text += strings.TrimSpace(s.Text()) + "\n"
+		})
 	}
 	return text
 }

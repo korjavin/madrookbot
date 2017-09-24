@@ -85,7 +85,10 @@ func getFile(url string) (string, error) {
 		log.Printf("File error: %v", err)
 	}
 	resp, err := http.Get(url)
-	defer resp.Body.Close()
+	if err != nil {
+		return "", err
+
+	}
 	io.Copy(tmpfile, resp.Body)
 	return tmpfile.Name(), nil
 
