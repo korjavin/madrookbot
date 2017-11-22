@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"log"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 var (
@@ -41,8 +42,8 @@ func botGo() {
 	}
 
 	for update := range updates {
-		// if update.EditedMessage.
-		if update.Message == nil && update.EditedMessage == nil {
+
+		if update.Message == nil && update.EditedMessage == nil && update.CallbackQuery == nil {
 			continue
 		}
 		var text string
@@ -55,6 +56,53 @@ func botGo() {
 		if update.EditedMessage != nil {
 			messg = update.EditedMessage
 		}
+		if update.CallbackQuery != nil {
+			messg = update.CallbackQuery.Message
+			from = update.CallbackQuery.From.ID
+
+			var markup tgbotapi.InlineKeyboardMarkup
+			var err error
+			switch update.CallbackQuery.Data {
+			case "lclass":
+				markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(
+						"Class1",
+						"class1",
+					),
+					tgbotapi.NewInlineKeyboardButtonData(
+						"Class2",
+						"class2",
+					),
+				))
+
+				edit := tgbotapi.NewEditMessageReplyMarkup(messg.Chat.ID, update.CallbackQuery.Message.MessageID, markup)
+				_, err = bot.Send(edit)
+			case "class1":
+				markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData(
+						"I'm go",
+						"yes",
+					),
+					tgbotapi.NewInlineKeyboardButtonData(
+						"I can't",
+						"no",
+					),
+				))
+				edit := tgbotapi.NewEditMessageReplyMarkup(messg.Chat.ID, update.CallbackQuery.Message.MessageID, markup)
+				_, err = bot.Send(edit)
+			case "yes":
+				edit := tgbotapi.NewMessage(messg.Chat.ID, "Thank you!")
+				_, err = bot.Send(edit)
+			case "no":
+				edit := tgbotapi.NewMessage(messg.Chat.ID, "I'm disappointed")
+				_, err = bot.Send(edit)
+			}
+			if err != nil {
+				log.Printf("[ERROR]  %v\n", err)
+			}
+			continue
+		}
+
 		text = messg.Text
 		from = messg.From.ID
 		if _, ok := fsms[from]; !ok {
@@ -62,6 +110,7 @@ func botGo() {
 		}
 
 		fsm := fsms[from]
+		log.Printf("[INFO] state %s  \n", fsm.state.Current())
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
 			fsm.state.Event("cancel")
@@ -178,6 +227,7 @@ func botGo() {
 				log.Printf("Send: %v ", err)
 			}
 			continue
+
 		default:
 		}
 
@@ -308,6 +358,32 @@ func botGo() {
 			}
 			continue
 		}
+
+		if strings.HasPrefix(strings.ToUpper(text), "/CLASS") {
+			fsm.state.Event("waitmenu1")
+
+			answer := "Choose action from the menu below:"
+			var markup tgbotapi.InlineKeyboardMarkup
+			markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					"List classes",
+					"lclass",
+				),
+			))
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg.ReplyToMessageID = messg.MessageID
+
+			smsg, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			fsm.MsgID = smsg.MessageID
+
+			edit := tgbotapi.NewEditMessageReplyMarkup(messg.Chat.ID, fsm.MsgID, markup)
+			bot.Send(edit)
+
+			continue
+		}
 		if !strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
 			continue
 		}
@@ -321,32 +397,23 @@ func botGo() {
 		voice = regexp.MustCompile(`\[|\]`).ReplaceAllLiteralString(voice, "")
 		text = revoice.ReplaceAllLiteralString(text, "")
 
-		sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
+		// sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
+		res := makeSpeech(text)
+		if res != nil {
+			file := tgbotapi.FileReader{
+				Name:   "filename",
+				Reader: res,
+				Size:   -1,
+			}
+			msg := tgbotapi.NewVoiceUpload(messg.Chat.ID, file)
+			msg.ReplyToMessageID = messg.MessageID
+			_, err = bot.Send(msg)
+
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+		}
 
 		go sendEvent("voice", "generate", messg.From.UserName)
-	}
-}
-func sendAudio(text string, voice string, uid int, cid int64, mid int) {
-	re := regexp.MustCompile("\\n")
-	text = re.ReplaceAllString(text, " ")
-	fileext, err := makeAudio(text, voice, uid)
-	if err != nil {
-		log.Printf("Make: %v ", err)
-	}
-
-	msg := tgbotapi.NewVoiceUpload(cid, fileext)
-	msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
-	msg.Caption = "Voice"
-	if mid != 0 {
-		msg.ReplyToMessageID = mid
-	}
-	_, err = bot.Send(msg)
-
-	if err != nil {
-		log.Printf("Send: %v ", err)
-	}
-	err = os.Remove(fileext)
-	if err != nil {
-		log.Printf("Can't remove file: %v ", err)
 	}
 }
