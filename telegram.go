@@ -172,7 +172,24 @@ func botGo() {
 				}
 			} else {
 				answer = "Okay, Dear " + messg.From.FirstName + ", I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
-				sendAudio(answer, text, messg.From.ID, messg.Chat.ID, messg.MessageID)
+
+				res := makeSpeech(answer)
+				if res != nil {
+					file := tgbotapi.FileReader{
+						Name:   "filename",
+						Reader: res,
+						Size:   -1,
+					}
+					msg := tgbotapi.NewVoiceUpload(messg.Chat.ID, file)
+					msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
+					msg.ReplyToMessageID = messg.MessageID
+					_, err = bot.Send(msg)
+
+					if err != nil {
+						log.Printf("Send: %v ", err)
+					}
+				}
+
 				prefs[messg.From.ID] = text
 				err := saveprefs(messg.From.ID, text)
 				if err != nil {
@@ -232,12 +249,12 @@ func botGo() {
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
-			answer := "You can send me any text to read aloud, but please mention me by @" + name
-			answer += "\nIf you want me to change my voice send me voice-name in square brackets like [Joey] "
-			answer += "\n   /setvoice command for setting default voice (just for you)"
-			answer += "\n   /define term :  show the definition from Merriam-Webster dictionary"
-			answer += "\n   /oxford term :  show the definition from Oxford dictionary"
-			answer += "\n   /idiom term  :  show the definition from idioms.thefreedictionary.com"
+			answer := `You can send me any text to read aloud, but please mention me by @` + name +
+				`If you want me to change my voice send me voice-name in square brackets like [Joey] 
+			   /setvoice command for setting default voice (just for you)
+			   /define term :  show the definition from Merriam-Webster dictionary
+			   /oxford term :  show the definition from Oxford dictionary
+			   /idiom term  :  show the definition from idioms.thefreedictionary.com`
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
 			_, err := bot.Send(msg)

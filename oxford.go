@@ -13,14 +13,9 @@ const (
 )
 
 var (
-	appID  string
-	appKey string
-)
-
-func init() {
-	appID = os.Getenv("OXFORD_ID")
+	appID  = os.Getenv("OXFORD_ID")
 	appKey = os.Getenv("OXFORD_KEY")
-}
+)
 
 type response struct {
 	Metadata struct {
@@ -61,39 +56,36 @@ type response struct {
 	} `json:"results"`
 }
 
-func getOxfordDefinition(word string) string {
+func getOxfordDefinition(word string) (answer string) {
 	url := baseURL + "/entries/en/" + word
 	bytes, err := getOxfordEndpoint(url)
 	if err != nil {
 		return ""
 	}
 	var r response
-
-	answer := ""
-	err = json.Unmarshal(bytes, &r)
-	if err == nil {
-		for _, v := range r.Results {
-			answer += "\n"
-			for _, l := range v.LexicalEntries {
-				for _, e := range l.Entries {
-					for _, s := range e.Senses {
-						for _, d := range s.Definitions {
-							answer += "- " + d + "\n"
-						}
-						for _, e := range s.Examples {
-							answer += "Example: " + e.Text + "\n"
-						}
+	if err = json.Unmarshal(bytes, &r); err != nil {
+		return ""
+	}
+	answer = "Oxford definition(s) for " + word + " :"
+	for _, v := range r.Results {
+		answer += "\n"
+		for _, l := range v.LexicalEntries {
+			for _, e := range l.Entries {
+				for _, s := range e.Senses {
+					for _, d := range s.Definitions {
+						answer += "- " + d + "\n"
+					}
+					for _, e := range s.Examples {
+						answer += "Example: " + e.Text + "\n"
 					}
 				}
+			}
 
-				// for _, p := range l.Pronunciations {
-				// 	answer += "Audio: " + p.AudioFile + "\n"
-				// }
+			for _, p := range l.Pronunciations {
+				answer += "Audio: " + p.AudioFile + "\n"
+				break
 			}
 		}
-	}
-	if answer != "" {
-		answer = "Oxford definition(s) for " + word + " :" + answer
 	}
 	return answer
 }
@@ -110,17 +102,14 @@ func getOxfordEndpoint(url string) ([]byte, error) {
 		return nil, err
 	}
 	defer func() {
-		err := res.Body.Close()
-		if err != nil {
+		if err := res.Body.Close(); err != nil {
 			log.Printf("body close : %v \n", err)
 		}
 	}()
-	if err != nil {
-		return nil, err
-	}
+
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		panic(err.Error())
+		log.Printf("[ERROR] %v", err)
 	}
 	return body, nil
 }
