@@ -1,0 +1,57 @@
+# github.com/PuerkitoBio/goquery v1.1.0
+github.com/PuerkitoBio/goquery
+# github.com/andybalholm/cascadia v0.0.0-20161224141413-349dd0209470
+github.com/andybalholm/cascadia
+# github.com/aws/aws-sdk-go v1.12.31
+github.com/aws/aws-sdk-go/aws
+github.com/aws/aws-sdk-go/aws/awserr
+github.com/aws/aws-sdk-go/aws/awsutil
+github.com/aws/aws-sdk-go/aws/client
+github.com/aws/aws-sdk-go/aws/client/metadata
+github.com/aws/aws-sdk-go/aws/corehandlers
+github.com/aws/aws-sdk-go/aws/credentials
+github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds
+github.com/aws/aws-sdk-go/aws/credentials/endpointcreds
+github.com/aws/aws-sdk-go/aws/credentials/stscreds
+github.com/aws/aws-sdk-go/aws/defaults
+github.com/aws/aws-sdk-go/aws/ec2metadata
+github.com/aws/aws-sdk-go/aws/endpoints
+github.com/aws/aws-sdk-go/aws/request
+github.com/aws/aws-sdk-go/aws/session
+github.com/aws/aws-sdk-go/aws/signer/v4
+github.com/aws/aws-sdk-go/internal/shareddefaults
+github.com/aws/aws-sdk-go/private/protocol
+github.com/aws/aws-sdk-go/private/protocol/json/jsonutil
+github.com/aws/aws-sdk-go/private/protocol/jsonrpc
+github.com/aws/aws-sdk-go/private/protocol/query
+github.com/aws/aws-sdk-go/private/protocol/query/queryutil
+github.com/aws/aws-sdk-go/private/protocol/rest
+github.com/aws/aws-sdk-go/private/protocol/restjson
+github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
+github.com/aws/aws-sdk-go/service/polly
+github.com/aws/aws-sdk-go/service/sts
+# github.com/boltdb/bolt v1.3.1
+github.com/boltdb/bolt
+# github.com/go-ini/ini v1.32.0
+github.com/go-ini/ini
+# github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e
+github.com/go-telegram-bot-api/telegram-bot-api
+# github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
+github.com/jmespath/go-jmespath
+# github.com/jpillora/go-ogle-analytics v0.0.0-20161213085824-14b04e0594ef
+github.com/jpillora/go-ogle-analytics
+# github.com/looplab/fsm v0.0.0-20170404094036-bcc3636384ce
+github.com/looplab/fsm
+# github.com/mattn/go-runewidth v0.0.7
+github.com/mattn/go-runewidth
+# github.com/mrjones/oauth v0.0.0-20170225175752-3f67d9c27435
+github.com/mrjones/oauth
+# github.com/olekukonko/tablewriter v0.0.4
+github.com/olekukonko/tablewriter
+# github.com/technoweenie/multipartstreamer v1.0.1
+github.com/technoweenie/multipartstreamer
+# golang.org/x/net v0.0.0-20190311183353-d8887717615a
+golang.org/x/net/html
+golang.org/x/net/html/atom
+# golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
+golang.org/x/sys/unix

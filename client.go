@@ -3,11 +3,16 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
+)
+
+var (
+	mwkey = os.Getenv("MW_KEY")
 )
 
 func getDoc(url string) (*html.Node, error) {
@@ -57,7 +62,7 @@ func getIdiom(term string) string {
 	}
 	return text
 }
-func getDefinition(term string) (text string) {
+func getDefinitionOld(term string) (text string) {
 	// get, err := getDoc("https://www.merriam-webster.com/dictionary/" + term)
 	// if err != nil {
 	// 	log.Println(err)
@@ -83,5 +88,8 @@ func getDefinition(term string) (text string) {
 			text += strings.TrimSpace(s.Text()) + "\n"
 		})
 	}
+	return text
+}
+func getDefinition(term string) (text string) {
 	return text
 }
