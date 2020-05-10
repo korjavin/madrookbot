@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -300,7 +301,12 @@ func botGo() {
 			if _, ok := sg[messg.From.ID]; !ok {
 				answer = "I don't have words for you. Create own by /NEWBINGO"
 			} else {
-				words := sg[messg.From.ID].GenerateOne()
+				split := strings.Split(text, " ")
+				var size int
+				if len(split) > 1 {
+					size, _ = strconv.Atoi(split[1])
+				}
+				words := sg[messg.From.ID].GenerateOne(size)
 				var captions []string
 				for _ = range words[0] {
 					captions = append(captions, "-")

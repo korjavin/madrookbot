@@ -32,12 +32,15 @@ func (s *SheetGenerator) AddWord(str string) {
 	log.Printf("sg len=%d size=%d", len(s.words), s.size)
 }
 
-func (s *SheetGenerator) GenerateOne() [][]string {
+func (s *SheetGenerator) GenerateOne(size int) [][]string {
 	used := make(map[int]struct{})
-	res := make([][]string, s.size)
-	for i := 0; i < s.size; i++ {
-		row := make([]string, s.size)
-		for j := 0; j < s.size; j++ {
+	if size == 0 {
+		size = s.size
+	}
+	res := make([][]string, size)
+	for i := 0; i < size; i++ {
+		row := make([]string, size)
+		for j := 0; j < size; j++ {
 			var idx int
 			for {
 				idx = rand.Intn(len(s.words))
