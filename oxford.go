@@ -93,6 +93,7 @@ func getOxfordDefinition(word string) (answer string) {
 func getOxfordEndpoint(url string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("app_id", appID)

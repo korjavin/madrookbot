@@ -191,7 +191,7 @@ func botGo() {
 			if answer == "" {
 				answer = "Sorry, nothing about " + text + "\n You can edit your message or send new \n Or /cancel"
 			} else {
-				fsm.state.Event("setterm")
+				_ = fsm.state.Event("setterm")
 			}
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -398,7 +398,10 @@ func botGo() {
 			fsm.MsgID = smsg.MessageID
 
 			edit := tgbotapi.NewEditMessageReplyMarkup(messg.Chat.ID, fsm.MsgID, markup)
-			bot.Send(edit)
+			_, err = bot.Send(edit)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
 
 			continue
 		}
@@ -409,9 +412,6 @@ func botGo() {
 		log.Printf("[%s] %s \n", messg.From.UserName, text)
 
 		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
-
-		voice := revoice.FindString(text)
-		voice = reclear.ReplaceAllLiteralString(voice, "")
 		text = revoice.ReplaceAllLiteralString(text, "")
 
 		// sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
