@@ -15,9 +15,11 @@ import (
 )
 
 var (
-	bot  *tgbotapi.BotAPI
-	name string
-	sg   map[int]*SheetGenerator
+	bot     *tgbotapi.BotAPI
+	name    string
+	sg      map[int]*SheetGenerator
+	revoice = regexp.MustCompile(`\[(\w+)\]`)
+	reclear = regexp.MustCompile(`\[|\]`)
 )
 
 func botGo() {
@@ -64,7 +66,7 @@ func botGo() {
 		}
 		if update.CallbackQuery != nil {
 			messg = update.CallbackQuery.Message
-			from = update.CallbackQuery.From.ID
+			// from = update.CallbackQuery.From.ID
 
 			var markup tgbotapi.InlineKeyboardMarkup
 			var err error
@@ -232,7 +234,7 @@ func botGo() {
 				}
 				answer = fmt.Sprintf("%d words added\n Thank you. You can use /BINGO now", len(words))
 			} else {
-				answer = fmt.Sprintf("Give me a word or two to add")
+				answer = "Give me a word or two to add"
 			}
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -294,15 +296,8 @@ func botGo() {
 		}
 		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
 			answer := `You can send me any text to read aloud, but please mention me by @` + name +
-				`If you want me to change my voice send me voice-name in square brackets like [Joey] 
-			   /setvoice command for setting default voice (just for you)
-			   /oxford term :  show the definition from Oxford dictionary
-			   /idiom term  :  show the definition from idioms.thefreedictionary.com
-				 voices: `
-			for v := range voices {
-				answer += v + ", "
-			}
-			strings.TrimSuffix(answer, ", ")
+				` /oxford term :  show the definition from Oxford dictionary
+			   /idiom term  :  show the definition from idioms.thefreedictionary.com`
 
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -415,9 +410,8 @@ func botGo() {
 
 		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
 
-		revoice := regexp.MustCompile(`\[(\w+)\]`)
 		voice := revoice.FindString(text)
-		voice = regexp.MustCompile(`\[|\]`).ReplaceAllLiteralString(voice, "")
+		voice = reclear.ReplaceAllLiteralString(voice, "")
 		text = revoice.ReplaceAllLiteralString(text, "")
 
 		// sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)

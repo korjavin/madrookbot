@@ -40,8 +40,6 @@ github.com/jmespath/go-jmespath
 github.com/looplab/fsm
 # github.com/mattn/go-runewidth v0.0.7
 github.com/mattn/go-runewidth
-# github.com/mrjones/oauth v0.0.0-20170225175752-3f67d9c27435
-github.com/mrjones/oauth
 # github.com/olekukonko/tablewriter v0.0.4
 github.com/olekukonko/tablewriter
 # github.com/technoweenie/multipartstreamer v1.0.1

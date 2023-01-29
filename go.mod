@@ -8,7 +8,6 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
 	github.com/looplab/fsm v0.0.0-20170404094036-bcc3636384ce
-	github.com/mrjones/oauth v0.0.0-20170225175752-3f67d9c27435
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
 	github.com/stretchr/testify v1.4.0 // indirect

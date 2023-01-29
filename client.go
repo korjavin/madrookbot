@@ -3,14 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 )
-
-var mwkey = os.Getenv("MW_KEY")
 
 func getDoc(url string) (*html.Node, error) {
 	req, err := http.NewRequest("GET", url, nil)

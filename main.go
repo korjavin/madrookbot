@@ -1,8 +1,8 @@
 package main
 
 var (
-	defaultVoice = "Raveena"
-	voices       = map[string]bool{
+	//	defaultVoice = "Raveena" <- hardcoded in makeSpeech
+	voices = map[string]bool{
 		"Russell":  true,
 		"Nicole":   true,
 		"Joanna":   true,
