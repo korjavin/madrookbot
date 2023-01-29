@@ -38,8 +38,6 @@ github.com/go-ini/ini
 github.com/go-telegram-bot-api/telegram-bot-api
 # github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
 github.com/jmespath/go-jmespath
-# github.com/jpillora/go-ogle-analytics v0.0.0-20161213085824-14b04e0594ef
-github.com/jpillora/go-ogle-analytics
 # github.com/looplab/fsm v0.0.0-20170404094036-bcc3636384ce
 github.com/looplab/fsm
 # github.com/mattn/go-runewidth v0.0.7
