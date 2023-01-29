@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func ExampleGenerateOne() {
+func ExampleSheetGeneratorGenerateOne() {
 	sg := NewSheetGenerator([]string{
 		"a",
 		"b",

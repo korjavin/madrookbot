@@ -14,17 +14,10 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-var (
-	bot     *tgbotapi.BotAPI
-	name    string
-	sg      map[int]*SheetGenerator
-	revoice = regexp.MustCompile(`\[(\w+)\]`)
-	reclear = regexp.MustCompile(`\[|\]`)
-)
+var removeVoice = regexp.MustCompile(`\[(\w+)\]`)
 
 func botGo() {
-	var err error
-	bot, err = tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -33,10 +26,10 @@ func botGo() {
 	if err != nil {
 		log.Panicf("me: %#v \n", err)
 	}
-	name = me.UserName
+	name := me.UserName
 
 	bot.Debug = false
-	sg = make(map[int]*SheetGenerator)
+	sg := make(map[int]*SheetGenerator)
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
@@ -64,61 +57,16 @@ func botGo() {
 		if update.EditedMessage != nil {
 			messg = update.EditedMessage
 		}
-		if update.CallbackQuery != nil {
-			messg = update.CallbackQuery.Message
-			// from = update.CallbackQuery.From.ID
-
-			var markup tgbotapi.InlineKeyboardMarkup
-			var err error
-			switch update.CallbackQuery.Data {
-			case "lclass":
-				markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData(
-						"Class1",
-						"class1",
-					),
-					tgbotapi.NewInlineKeyboardButtonData(
-						"Class2",
-						"class2",
-					),
-				))
-
-				edit := tgbotapi.NewEditMessageReplyMarkup(messg.Chat.ID, update.CallbackQuery.Message.MessageID, markup)
-				_, err = bot.Send(edit)
-			case "class1":
-				markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
-					tgbotapi.NewInlineKeyboardButtonData(
-						"I'm go",
-						"yes",
-					),
-					tgbotapi.NewInlineKeyboardButtonData(
-						"I can't",
-						"no",
-					),
-				))
-				edit := tgbotapi.NewEditMessageReplyMarkup(messg.Chat.ID, update.CallbackQuery.Message.MessageID, markup)
-				_, err = bot.Send(edit)
-			case "yes":
-				edit := tgbotapi.NewMessage(messg.Chat.ID, "Thank you!")
-				_, err = bot.Send(edit)
-			case "no":
-				edit := tgbotapi.NewMessage(messg.Chat.ID, "I'm disappointed")
-				_, err = bot.Send(edit)
-			}
-			if err != nil {
-				log.Printf("[ERROR]  %v\n", err)
-			}
-			continue
-		}
 
 		text = messg.Text
 		from = messg.From.ID
+
 		if _, ok := fsms[from]; !ok {
 			fsms[from] = newDialogue(from)
 		}
-
 		fsm := fsms[from]
-		log.Printf("[INFO] state %s  \n", fsm.state.Current())
+
+		log.Printf("[INFO] state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
 			_ = fsm.state.Event("cancel")
@@ -266,22 +214,6 @@ func botGo() {
 				table.AppendBulk(words)
 				table.Render()
 				buf.WriteString("```")
-				// answer = "```\n"
-				// for _, row := range words {
-				// 	// answer += "\t"
-				// 	// if i == 1 {
-				// 	// 	for _ = range row {
-				// 	// 		answer += "---------|\t"
-				// 	// 	}
-				// 	// 	answer += "\n"
-				// 	// }
-				// 	for _, val := range row {
-				// 		answer += val + "|\t\t"
-				// 	}
-				// 	answer = strings.TrimSuffix(answer, "|\t\t")
-				// 	answer += "\n"
-				// }
-				// answer += "```"
 				answer = buf.String()
 			}
 
@@ -377,34 +309,6 @@ func botGo() {
 			continue
 		}
 
-		if strings.HasPrefix(strings.ToUpper(text), "/CLASS") {
-			_ = fsm.state.Event("waitmenu1")
-
-			answer := "Choose action from the menu below:"
-			var markup tgbotapi.InlineKeyboardMarkup
-			markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(
-					"List classes",
-					"lclass",
-				),
-			))
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-			msg.ReplyToMessageID = messg.MessageID
-
-			smsg, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			fsm.MsgID = smsg.MessageID
-
-			edit := tgbotapi.NewEditMessageReplyMarkup(messg.Chat.ID, fsm.MsgID, markup)
-			_, err = bot.Send(edit)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-
-			continue
-		}
 		if !strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
 			continue
 		}
@@ -412,7 +316,7 @@ func botGo() {
 		log.Printf("[%s] %s \n", messg.From.UserName, text)
 
 		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
-		text = revoice.ReplaceAllLiteralString(text, "")
+		text = removeVoice.ReplaceAllLiteralString(text, "")
 
 		// sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
 		res := makeSpeech(text)

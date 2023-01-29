@@ -17,8 +17,6 @@ func newDialogue(fid int) *dialogue {
 	d.state = fsm.NewFSM(
 		"idle",
 		fsm.Events{
-			{Name: "waitmenu1", Src: []string{"idle"}, Dst: "classmenu"},
-			{Name: "waitmenu2", Src: []string{"classmenu"}, Dst: "rvspmenu"},
 			{Name: "waitvoice", Src: []string{"idle"}, Dst: "waitvoice"},
 			{Name: "waitoxford", Src: []string{"idle"}, Dst: "waitoxford"},
 			{Name: "waitidiom", Src: []string{"idle"}, Dst: "waitidiom"},
