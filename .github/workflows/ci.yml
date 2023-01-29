@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.3
+      - uses: actions/checkout@v3
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.49.0
+          args: -E gofumpt -E revive --out-${NO_FUTURE}format colored-line-number
+
+  build_master_image:
+    name: Build master image
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/build
+      - uses: ./.github/actions/build_image
+        with:
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          tag: latest
