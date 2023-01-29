@@ -119,11 +119,9 @@ func botGo() {
 		log.Printf("[INFO] state %s  \n", fsm.state.Current())
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
-			fsm.state.Event("cancel")
+			_ = fsm.state.Event("cancel")
 
-			answer := "Command canceled."
-
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			msg := tgbotapi.NewMessage(messg.Chat.ID, "Command canceled.")
 			msg.ReplyToMessageID = messg.MessageID
 
 			_, err := bot.Send(msg)
@@ -166,7 +164,7 @@ func botGo() {
 			answer := ""
 			if !voices[text] {
 				answer = "Sorry,I don't have this voice: '" + text + "', command canceled"
-				fsm.state.Event("cancel")
+				_ = fsm.state.Event("cancel")
 				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 				msg.ReplyToMessageID = messg.MessageID
 
@@ -197,7 +195,7 @@ func botGo() {
 				}
 
 				prefs[messg.From.ID] = text
-				fsm.state.Event("setvoice")
+				_ = fsm.state.Event("setvoice")
 			}
 			continue
 		case "waitidiom":
@@ -212,7 +210,7 @@ func botGo() {
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
-			fsm.state.Event("setterm")
+			_ = fsm.state.Event("setterm")
 			continue
 		case "waitoxford":
 			answer := getOxfordDefinition(text)
@@ -347,7 +345,7 @@ func botGo() {
 			answer := ""
 			if len(split) < 2 {
 				answer = " Please send me any text to search in idioms.thefreedictionary.com"
-				fsm.state.Event("waitidiom")
+				_ = fsm.state.Event("waitidiom")
 			} else {
 				answer = getIdiom(strings.Join(split[1:], "+"))
 				if answer == "" {
@@ -368,7 +366,7 @@ func botGo() {
 			answer := ""
 			if len(split) < 2 {
 				answer = "Please send me any text to search in the oxford dictionary"
-				fsm.state.Event("waitoxford")
+				_ = fsm.state.Event("waitoxford")
 			} else {
 				answer = getOxfordDefinition(split[1])
 				if answer == "" {
@@ -385,7 +383,7 @@ func botGo() {
 			continue
 		}
 		if strings.HasPrefix(strings.ToUpper(text), "/SETVOICE") {
-			fsm.state.Event("waitvoice")
+			_ = fsm.state.Event("waitvoice")
 
 			var buttons []tgbotapi.KeyboardButton
 
@@ -412,7 +410,7 @@ func botGo() {
 			continue
 		}
 		if strings.HasPrefix(strings.ToUpper(text), "/AUDIO") {
-			fsm.state.Event("audio")
+			_ = fsm.state.Event("audio")
 
 			answer := "Please send me an audio to upload on audioboom."
 
@@ -427,7 +425,7 @@ func botGo() {
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CLASS") {
-			fsm.state.Event("waitmenu1")
+			_ = fsm.state.Event("waitmenu1")
 
 			answer := "Choose action from the menu below:"
 			var markup tgbotapi.InlineKeyboardMarkup

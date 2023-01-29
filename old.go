@@ -16,6 +16,9 @@ func getFile(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	io.Copy(tmpfile, resp.Body)
+	_, err = io.Copy(tmpfile, resp.Body)
+	if err != nil {
+		return "", err
+	}
 	return tmpfile.Name(), nil
 }
