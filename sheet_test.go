@@ -14,8 +14,8 @@ func ExampleGenerateOne() {
 		"h",
 	}, 12)
 
-	fmt.Printf("%v\n", sg.GenerateOne())
-	fmt.Printf("%v", sg.GenerateOne())
+	fmt.Printf("%v\n", sg.GenerateOne(2))
+	fmt.Printf("%v", sg.GenerateOne(2))
 
 	// Output:
 	// [[b d] [c g]]
