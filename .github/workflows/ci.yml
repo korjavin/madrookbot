@@ -29,7 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/build
       - uses: ./.github/actions/build_image
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
