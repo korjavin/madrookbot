@@ -197,10 +197,6 @@ func botGo() {
 				}
 
 				prefs[messg.From.ID] = text
-				err := saveprefs(messg.From.ID, text)
-				if err != nil {
-					log.Printf("Save prefs: %v ", err)
-				}
 				fsm.state.Event("setvoice")
 			}
 			continue

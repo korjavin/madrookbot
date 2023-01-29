@@ -1,18 +1,8 @@
 package main
 
-import (
-	"log"
-)
-
 var (
-	defaultVoice string
-	voices       map[string]bool
-	prefs        map[int]string
-)
-
-func init() {
 	defaultVoice = "Raveena"
-	voices = map[string]bool{
+	voices       = map[string]bool{
 		"Russell":  true,
 		"Nicole":   true,
 		"Joanna":   true,
@@ -28,13 +18,10 @@ func init() {
 		"Raveena":  true,
 		"Geraint":  true,
 	}
-}
+
+	prefs = map[int]string{}
+)
 
 func main() {
-	prefs = make(map[int]string)
-	err := loadprefs()
-	if err != nil {
-		log.Printf("Prefs error: %v", err)
-	}
 	botGo()
 }

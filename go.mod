@@ -4,7 +4,6 @@ require (
 	github.com/PuerkitoBio/goquery v1.1.0
 	github.com/andybalholm/cascadia v0.0.0-20161224141413-349dd0209470 // indirect
 	github.com/aws/aws-sdk-go v1.12.31
-	github.com/boltdb/bolt v1.3.1
 	github.com/go-ini/ini v1.32.0 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e
 	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8 // indirect
