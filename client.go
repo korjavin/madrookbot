@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
@@ -57,38 +56,5 @@ func getIdiom(term string) string {
 		}
 
 	}
-	return text
-}
-
-func getDefinitionOld(term string) (text string) {
-	// get, err := getDoc("https://www.merriam-webster.com/dictionary/" + term)
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
-	// doc := goquery.NewDocumentFromNode(get)
-	doc, err := goquery.NewDocument("https://www.merriam-webster.com/dictionary/" + term)
-	if err != nil {
-		log.Printf("[ERROR]  %v\n", err)
-	}
-
-	// doc.Find("div.vg:nth-child(2) > div:nth-child").Each(func(i int, s *goquery.Selection) {
-	// 	// text = s.Text()
-	// 	text += strings.TrimSpace(s.Text()) + "\n"
-	// })
-	if text == "" {
-		doc.Find("div.vg:nth-child(2) > div  > span > div > span").Each(func(i int, s *goquery.Selection) {
-			text += strings.TrimSpace(s.Text()) + "\n"
-		})
-	}
-	if text == "" {
-		doc.Find("div.card-primary-content:nth-child(3) > ol").Each(func(i int, s *goquery.Selection) {
-			text += strings.TrimSpace(s.Text()) + "\n"
-		})
-	}
-	return text
-}
-
-func getDefinition(term string) (text string) {
 	return text
 }

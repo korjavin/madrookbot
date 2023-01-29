@@ -214,19 +214,6 @@ func botGo() {
 			}
 			fsm.state.Event("setterm")
 			continue
-		case "waitterm":
-			answer := getDefinition(text)
-			if answer == "" {
-				answer = "Sorry, nothing about " + text
-			}
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-			msg.ReplyToMessageID = messg.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			fsm.state.Event("setterm")
-			continue
 		case "waitoxford":
 			answer := getOxfordDefinition(text)
 			if answer == "" {
@@ -339,30 +326,13 @@ func botGo() {
 			answer := `You can send me any text to read aloud, but please mention me by @` + name +
 				`If you want me to change my voice send me voice-name in square brackets like [Joey] 
 			   /setvoice command for setting default voice (just for you)
-			   /define term :  show the definition from Merriam-Webster dictionary
 			   /oxford term :  show the definition from Oxford dictionary
-			   /idiom term  :  show the definition from idioms.thefreedictionary.com`
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-			msg.ReplyToMessageID = messg.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
+			   /idiom term  :  show the definition from idioms.thefreedictionary.com
+				 voices: `
+			for v := range voices {
+				answer += v + ", "
 			}
-			continue
-		}
-		if strings.HasPrefix(strings.ToUpper(text), "/DEFINE") {
-
-			split := strings.Split(text, " ")
-			answer := ""
-			if len(split) < 2 {
-				answer = " Please, use send me any text to search in Merriam-Webster dictionary"
-				fsm.state.Event("waitterm")
-			} else {
-				answer = getDefinition(split[1])
-				if answer == "" {
-					answer = "Sorry, nothing about " + split[1]
-				}
-			}
+			strings.TrimSuffix(answer, ", ")
 
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
