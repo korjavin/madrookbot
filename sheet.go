@@ -23,6 +23,7 @@ func NewSheetGenerator(words []string, seed int64) *SheetGenerator {
 		size:  x,
 	}
 }
+
 func (s *SheetGenerator) AddWord(str string) {
 	if str == "" {
 		return

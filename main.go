@@ -28,7 +28,6 @@ func init() {
 		"Raveena":  true,
 		"Geraint":  true,
 	}
-
 }
 
 func main() {

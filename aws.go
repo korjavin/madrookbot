@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -9,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/polly"
-	"io"
 )
 
 func makeSpeech(text string) io.ReadCloser {

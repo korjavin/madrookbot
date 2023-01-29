@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/looplab/fsm"
 	"log"
+
+	"github.com/looplab/fsm"
 )
 
 type dialogue struct {
@@ -33,6 +34,7 @@ func newDialogue(fid int) *dialogue {
 	)
 	return &d
 }
+
 func (d *dialogue) enterState(e *fsm.Event) {
 	log.Printf("The dialogue to %d is %s\n", d.FromID, e.Dst)
 }

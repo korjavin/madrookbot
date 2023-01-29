@@ -49,7 +49,6 @@ func botGo() {
 	}
 
 	for update := range updates {
-
 		if update.Message == nil && update.EditedMessage == nil && update.CallbackQuery == nil {
 			continue
 		}
@@ -210,8 +209,6 @@ func botGo() {
 			answer := getIdiom(strings.Join(split, "+"))
 			if answer == "" {
 				answer = "Sorry, nothing about " + text
-			} else {
-				go sendEvent("translation", "define", text)
 			}
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -225,8 +222,6 @@ func botGo() {
 			answer := getDefinition(text)
 			if answer == "" {
 				answer = "Sorry, nothing about " + text
-			} else {
-				go sendEvent("translation", "define", text)
 			}
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -241,7 +236,6 @@ func botGo() {
 			if answer == "" {
 				answer = "Sorry, nothing about " + text + "\n You can edit your message or send new \n Or /cancel"
 			} else {
-				go sendEvent("translation", "oxford", text)
 				fsm.state.Event("setterm")
 			}
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
@@ -254,7 +248,6 @@ func botGo() {
 
 		default:
 		}
-		log.Printf("strings.ToUpper(text)", strings.ToUpper(text))
 
 		if strings.HasPrefix(strings.ToUpper(text), "/NEWBINGO") {
 			var words []string
@@ -308,7 +301,7 @@ func botGo() {
 				}
 				words := sg[messg.From.ID].GenerateOne(size)
 				var captions []string
-				for _ = range words[0] {
+				for range words[0] {
 					captions = append(captions, "-")
 				}
 
@@ -359,7 +352,6 @@ func botGo() {
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
-			go sendEvent("command", "help", "")
 			continue
 		}
 		if strings.HasPrefix(strings.ToUpper(text), "/DEFINE") {
@@ -373,8 +365,6 @@ func botGo() {
 				answer = getDefinition(split[1])
 				if answer == "" {
 					answer = "Sorry, nothing about " + split[1]
-				} else {
-					go sendEvent("translation", "define", split[1])
 				}
 			}
 
@@ -396,8 +386,6 @@ func botGo() {
 				answer = getIdiom(strings.Join(split[1:], "+"))
 				if answer == "" {
 					answer = "Sorry, nothing about " + strings.Join(split[1:], " ")
-				} else {
-					go sendEvent("translation", "define", split[1])
 				}
 			}
 
@@ -419,8 +407,6 @@ func botGo() {
 				answer = getOxfordDefinition(split[1])
 				if answer == "" {
 					answer = "Sorry, nothing about " + split[1]
-				} else {
-					go sendEvent("translation", "oxford", split[1])
 				}
 			}
 
@@ -528,7 +514,5 @@ func botGo() {
 				log.Printf("Send: %v ", err)
 			}
 		}
-
-		go sendEvent("voice", "generate", messg.From.UserName)
 	}
 }

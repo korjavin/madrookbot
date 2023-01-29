@@ -3,7 +3,6 @@ package main
 import "fmt"
 
 func ExampleGenerateOne() {
-
 	sg := NewSheetGenerator([]string{
 		"a",
 		"b",

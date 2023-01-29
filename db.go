@@ -4,13 +4,12 @@ import (
 	"encoding/binary"
 	// "encoding/json"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"log"
+
+	"github.com/boltdb/bolt"
 )
 
-var (
-	db *bolt.DB
-)
+var db *bolt.DB
 
 // type Prefs struct {
 // 	voice string `json:"voice"`
@@ -18,7 +17,7 @@ var (
 
 func init() {
 	var err error
-	db, err = bolt.Open("my.db", 0666, &bolt.Options{ReadOnly: false})
+	db, err = bolt.Open("my.db", 0o666, &bolt.Options{ReadOnly: false})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,7 +35,6 @@ func init() {
 
 func loadprefs() error {
 	return db.View(func(tx *bolt.Tx) error {
-
 		b := tx.Bucket([]byte("users"))
 
 		err := b.ForEach(func(k, v []byte) error {
@@ -74,6 +72,7 @@ func itob(v int) []byte {
 	binary.BigEndian.PutUint64(b, uint64(v))
 	return b
 }
+
 func btoi(b []byte) int {
 	return int(binary.BigEndian.Uint64(b))
 }

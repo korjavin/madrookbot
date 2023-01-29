@@ -11,9 +11,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-var (
-	mwkey = os.Getenv("MW_KEY")
-)
+var mwkey = os.Getenv("MW_KEY")
 
 func getDoc(url string) (*html.Node, error) {
 	req, err := http.NewRequest("GET", url, nil)
@@ -56,12 +54,12 @@ func getIdiom(term string) string {
 			doc.Find("#Definition > section:nth-child(1)").Each(func(i int, s *goquery.Selection) {
 				text += s.Text() + "\n"
 			})
-
 		}
 
 	}
 	return text
 }
+
 func getDefinitionOld(term string) (text string) {
 	// get, err := getDoc("https://www.merriam-webster.com/dictionary/" + term)
 	// if err != nil {
@@ -90,6 +88,7 @@ func getDefinitionOld(term string) (text string) {
 	}
 	return text
 }
+
 func getDefinition(term string) (text string) {
 	return text
 }

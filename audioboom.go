@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/mrjones/oauth"
 	"log"
 	"os"
+
+	"github.com/mrjones/oauth"
 )
 
 var (
@@ -15,6 +16,7 @@ func init() {
 	aboomkey = os.Getenv("ABOOM_KEY")
 	aboomsecret = os.Getenv("ABOOM_SECRET")
 }
+
 func uploadFile(filename string) error {
 	c := oauth.NewConsumer(
 		aboomkey,
@@ -36,7 +38,7 @@ func uploadFile(filename string) error {
 	log.Println("(3) Enter that verification code here: ")
 
 	verificationCode := ""
-	//log.Scanln(&verificationCode)
+	// log.Scanln(&verificationCode)
 
 	accessToken, err := c.AuthorizeToken(requestToken, verificationCode)
 	if err != nil {
