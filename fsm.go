@@ -18,7 +18,6 @@ func newDialogue(fid int) *dialogue {
 		"idle",
 		fsm.Events{
 			{Name: "waitvoice", Src: []string{"idle"}, Dst: "waitvoice"},
-			{Name: "waitoxford", Src: []string{"idle"}, Dst: "waitoxford"},
 			{Name: "waitidiom", Src: []string{"idle"}, Dst: "waitidiom"},
 			{Name: "cancel", Src: []string{"waitoxford", "waitvoice", "idle"}, Dst: "idle"},
 		},

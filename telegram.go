@@ -136,22 +136,12 @@ func botGo() {
 			}
 			_ = fsm.state.Event("cancel")
 			continue
-		case "waitoxford":
-			answer := getOxfordDefinition(text)
-			if answer == "" {
-				answer = "Sorry, nothing about " + text + "\n You can edit your message or send new \n Or /cancel"
-			} else {
-				_ = fsm.state.Event("cancel")
-			}
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-			msg.ReplyToMessageID = messg.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			continue
+
+		case "idle":
+			log.Printf("[INFO] idle state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
 
 		default:
+			log.Printf("[INFO] uncovered state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CENSURE") {
@@ -265,27 +255,6 @@ func botGo() {
 				answer = getIdiom(strings.Join(split[1:], "+"))
 				if answer == "" {
 					answer = "Sorry, nothing about " + strings.Join(split[1:], " ")
-				}
-			}
-
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-			msg.ReplyToMessageID = messg.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			continue
-		}
-		if strings.HasPrefix(strings.ToUpper(text), "/OXFORD") {
-			split := strings.Split(text, " ")
-			answer := ""
-			if len(split) < 2 {
-				answer = "Please send me any text to search in the oxford dictionary"
-				_ = fsm.state.Event("waitoxford")
-			} else {
-				answer = getOxfordDefinition(split[1])
-				if answer == "" {
-					answer = "Sorry, nothing about " + split[1]
 				}
 			}
 
