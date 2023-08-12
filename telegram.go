@@ -61,6 +61,8 @@ func botGo() {
 		text = messg.Text
 		from = messg.From.ID
 
+		go AddActivity(messg.From.UserName, messg.Chat.Title, time.Now().Unix())
+
 		if _, ok := fsms[from]; !ok {
 			fsms[from] = newDialogue(from)
 		}
@@ -150,6 +152,20 @@ func botGo() {
 			continue
 
 		default:
+		}
+
+		if strings.HasPrefix(strings.ToUpper(text), "/CENSURE") {
+			if messg.From.FirstName != "engelbart" {
+				log.Printf("User %s tried to use admin command", messg.From.UserName)
+			}
+			if messg.Chat.IsGroup() {
+				name, ts := GetSilentMoreThan14Days(messg.Chat.Title)
+				log.Printf("Silent %s for 14 days, since %s", name, time.Unix(ts, 0))
+			} else {
+				groupname := strings.Split(messg.Text, " ")[1]
+				name, ts := GetSilentMoreThan14Days(groupname)
+				log.Printf("Silent %s for 14 days, since %s", name, time.Unix(ts, 0))
+			}
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/NEWBINGO") {
