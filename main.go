@@ -1,5 +1,7 @@
 package main
 
+import "log"
+
 var (
 	//	defaultVoice = "Raveena" <- hardcoded in makeSpeech
 	voices = map[string]bool{
@@ -19,9 +21,15 @@ var (
 		"Geraint":  true,
 	}
 
-	prefs = map[int]string{}
+	prefs map[int]string
 )
 
 func main() {
+	var err error
+	prefs, err = GetAllVoices()
+	if err != nil {
+		log.Printf("Error getting all voices: %v", err)
+		prefs = make(map[int]string)
+	}
 	botGo()
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/polly"
 )
 
-func makeSpeech(text string) io.ReadCloser {
+func makeSpeech(text string, voice string) io.ReadCloser {
 	creds := credentials.NewEnvCredentials()
 
 	sess, err := session.NewSession(aws.NewConfig().WithRegion("us-west-2").WithCredentials(creds))
@@ -26,7 +26,7 @@ func makeSpeech(text string) io.ReadCloser {
 		SampleRate:   aws.String("8000"),
 		Text:         aws.String(text),
 		TextType:     aws.String("text"),
-		VoiceId:      aws.String("Raveena"),
+		VoiceId:      aws.String(voice),
 	}
 
 	result, err := svc.SynthesizeSpeech(input)

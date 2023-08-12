@@ -99,9 +99,9 @@ func botGo() {
 					log.Printf("Send: %v ", err)
 				}
 			} else {
-				answer = "Okay, Dear " + messg.From.FirstName + ", I will use the voice " + text + " for your messages! You can still override voice by using square brackets."
+				answer = "Okay, Dear " + messg.From.FirstName + ", I will use the voice " + text + " for your messages! \n Wheneve you want me to make speech just mention me in your message"
 
-				res := makeSpeech(answer)
+				res := makeSpeech(answer, text)
 				if res != nil {
 					file := tgbotapi.FileReader{
 						Name:   "filename",
@@ -118,7 +118,9 @@ func botGo() {
 					}
 				}
 
+				SetVoice(messg.From.ID, text)
 				prefs[messg.From.ID] = text
+
 				_ = fsm.state.Event("cancel")
 			}
 			continue
@@ -303,8 +305,13 @@ func botGo() {
 		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
 		text = removeVoice.ReplaceAllLiteralString(text, "")
 
+		voice := "Raveena"
+		if v, ok := prefs[messg.From.ID]; ok {
+			voice = v
+		}
+
 		// sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
-		res := makeSpeech(text)
+		res := makeSpeech(text, voice)
 		if res != nil {
 			file := tgbotapi.FileReader{
 				Name:   "filename",
