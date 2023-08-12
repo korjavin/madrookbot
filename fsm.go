@@ -20,8 +20,6 @@ func newDialogue(fid int) *dialogue {
 			{Name: "waitvoice", Src: []string{"idle"}, Dst: "waitvoice"},
 			{Name: "waitoxford", Src: []string{"idle"}, Dst: "waitoxford"},
 			{Name: "waitidiom", Src: []string{"idle"}, Dst: "waitidiom"},
-			{Name: "setvoice", Src: []string{"waitvoice"}, Dst: "idle"},
-			{Name: "setterm", Src: []string{"waitoxford", "waitidiom"}, Dst: "idle"},
 			{Name: "cancel", Src: []string{"waitoxford", "waitvoice", "idle"}, Dst: "idle"},
 		},
 		fsm.Callbacks{

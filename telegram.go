@@ -119,7 +119,7 @@ func botGo() {
 				}
 
 				prefs[messg.From.ID] = text
-				_ = fsm.state.Event("setvoice")
+				_ = fsm.state.Event("cancel")
 			}
 			continue
 		case "waitidiom":
@@ -134,14 +134,14 @@ func botGo() {
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
-			_ = fsm.state.Event("setterm")
+			_ = fsm.state.Event("cancel")
 			continue
 		case "waitoxford":
 			answer := getOxfordDefinition(text)
 			if answer == "" {
 				answer = "Sorry, nothing about " + text + "\n You can edit your message or send new \n Or /cancel"
 			} else {
-				_ = fsm.state.Event("setterm")
+				_ = fsm.state.Event("cancel")
 			}
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
