@@ -1,4 +1,4 @@
-FROM golang:1.19.3
+FROM golang:1.20.1
 WORKDIR /go/src/app
 COPY . .
 RUN go build -mod=vendor -o /tmp/madrookbot
