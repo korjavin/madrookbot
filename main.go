@@ -1,6 +1,10 @@
 package main
 
-import "log"
+import (
+	"log"
+	"os"
+	"strings"
+)
 
 var (
 	//	defaultVoice = "Raveena" <- hardcoded in makeSpeech
@@ -31,5 +35,16 @@ func main() {
 		log.Printf("Error getting all voices: %v", err)
 		prefs = make(map[int]string)
 	}
-	botGo()
+	// print all env
+	for _, e := range os.Environ() {
+		log.Println(e)
+	}
+	var ff filterFunc
+	if os.Getenv("GPT_TOKEN") != "" {
+		log.Printf("GPT_TOKEN is set, using GPT-3")
+		initGPT()
+		keywords := strings.Split(os.Getenv("GPT_KEYWORDS"), ",")
+		ff = generatorOfContainFuncs(keywords)
+	}
+	botGo(ff)
 }

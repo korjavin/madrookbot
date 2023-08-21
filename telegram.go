@@ -16,7 +16,7 @@ import (
 
 var removeVoice = regexp.MustCompile(`\[(\w+)\]`)
 
-func botGo() {
+func botGo(filter filterFunc) {
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		log.Panic(err)
@@ -296,6 +296,43 @@ func botGo() {
 			continue
 		}
 
+		if messg.From.ID == bot.Self.ID {
+			continue
+		}
+		if client != nil {
+			if filter != nil &&
+				(filter(strings.ToUpper(text)) || messg.ReplyToMessage != nil &&
+					messg.ReplyToMessage.From.ID == bot.Self.ID) {
+				log.Printf("GPT request: %s", text)
+				txt, err := getGPTAnswer(text)
+				if err != nil {
+					log.Printf("chat: %v ", err)
+				}
+				msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
+				msg.ReplyToMessageID = messg.MessageID
+				_, err = bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+				continue
+			}
+		}
+
+		if strings.Contains(strings.ToUpper(text), "ЧТО НОВОГО") {
+			txt, err := getAndDeleteRandomNews()
+			if err != nil {
+				log.Printf("db: %v ", err)
+				txt = "Все известные мне новости уже показаны"
+			}
+			msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
+			msg.ReplyToMessageID = messg.MessageID
+			_, err = bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+
+		}
+
 		if !strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
 			continue
 		}
@@ -326,5 +363,18 @@ func botGo() {
 				log.Printf("Send: %v ", err)
 			}
 		}
+	}
+}
+
+type filterFunc func(string) bool
+
+func generatorOfContainFuncs(keywords []string) filterFunc {
+	return func(msg string) bool {
+		for _, keyword := range keywords {
+			if strings.Contains(strings.ToUpper(msg), strings.ToUpper(keyword)) {
+				return true
+			}
+		}
+		return false
 	}
 }

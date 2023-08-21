@@ -29,6 +29,11 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS news ( text not null)")
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func GetAllVoices() (map[int]string, error) {
