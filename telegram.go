@@ -296,13 +296,14 @@ func botGo(filter filterFunc) {
 			continue
 		}
 
-		if messg.From.ID == bot.Self.ID {
+		if messg.From.ID == bot.Self.ID ||
+			update.EditedMessage != nil {
 			continue
 		}
 		if client != nil {
 			if filter != nil &&
-				(filter(strings.ToUpper(text)) || messg.ReplyToMessage != nil &&
-					messg.ReplyToMessage.From.ID == bot.Self.ID) {
+				filter(strings.ToUpper(text)) { // || messg.ReplyToMessage != nil &&
+				// messg.ReplyToMessage.From.ID == bot.Self.ID) {
 				log.Printf("GPT request: %s", text)
 				txt, err := getGPTAnswer(text)
 				if err != nil {
