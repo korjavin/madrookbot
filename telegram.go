@@ -317,7 +317,7 @@ func botGo(filter filterFunc) {
 
 			answer, err := getGPTAnswerWithSystem(
 				fmt.Sprintf("Rewrite message: new class is scheduled \n on  %s at %s.\n Topic: *%s* \n In order to join it put any reaction on this message and you will be reminded 10 minutes before the class with a zoom link. \n\n Please be committed, if you RSVP we do expect you join.", date, timeStr, topic),
-				"You are an English Teacher, and you try to use advanced vocabulary",
+				"You are an English Teacher, and you try to use advanced vocabulary and be strict to your students",
 			)
 			if err != nil {
 				log.Printf("GPT err: %v ", err)
@@ -334,7 +334,7 @@ func botGo(filter filterFunc) {
 			go func() {
 				answer, err := getGPTAnswerWithSystem(
 					fmt.Sprintf("Rewrite message: class with topic *%s* is starting in ten minutes, to join please use this link: https://us02web.zoom.us/j/7249000123?pwd=azdzRVJtR2lQMmxYU3lzU0R0dDZydz09 \n\n Please remember, we are a small group, everyone attendance is making difference", topic),
-					"You are an English Teacher, and you try to use advanced vocabulary",
+					"You are an English Teacher, and you try to use advanced vocabulary and you are strict to your students",
 				)
 				if err != nil {
 					log.Printf("GPT err: %v ", err)
