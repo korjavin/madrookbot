@@ -314,9 +314,20 @@ func botGo(filter filterFunc) {
 			currentClass = class{Date: t, Topic: topic}
 
 			timeStr := t.UTC().Format("January 2 3 PM MST")
+			//let's format time in Florida timezone
+			florida, err := time.LoadLocation("America/New_York")
+			if err != nil {
+				log.Printf("LoadLocation: %v ", err)
+				continue
+			}
+			timeStrFlorida := t.In(florida).Format("3 PM MST")
+
+			// parse date time in berlin datazone
+
+			timeStrBerlin := t.In(florida).Format("3 PM MST")
 
 			answer, err := getGPTAnswerWithSystem(
-				fmt.Sprintf("Rewrite message: new class is scheduled \n on  %s at %s.\n Topic: *%s* \n In order to join it put any reaction on this message and you will be reminded 10 minutes before the class with a zoom link. \n\n Please be committed, if you RSVP we do expect you join.", date, timeStr, topic),
+				fmt.Sprintf("Rewrite message: new class is scheduled \n on  %s at %s (%s and %s). \n Topic: *%s* \n In order to join it put any reaction on this message and you will be reminded 10 minutes before the class with a zoom link. \n\n Please be committed, if you RSVP we do expect you join.", date, timeStr, timeStrFlorida, timeStrBerlin, topic),
 				"You are an English Teacher, and you try to use advanced vocabulary and be strict to your students",
 			)
 			if err != nil {
