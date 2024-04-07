@@ -309,11 +309,14 @@ func botGo(filter filterFunc) {
 				log.Printf("ParseInLocation: %v ", err)
 				continue
 			}
+
 			// create new class
 			currentClass = class{Date: t, Topic: topic}
 
+			timeStr := t.UTC().Format("January 2 3 PM MST")
+
 			answer, err := getGPTAnswerWithSystem(
-				fmt.Sprintf("Rewrite message: new class is scheduled \n on  %s at %s Berlin Time.\n Topic: *%s* \n In order to join it put any reaction on this message and you will be reminded 10 minutes before the class with a zoom link. \n\n Please be committed, if you RSVP we do expect you join.", date, tm, topic),
+				fmt.Sprintf("Rewrite message: new class is scheduled \n on  %s at %s.\n Topic: *%s* \n In order to join it put any reaction on this message and you will be reminded 10 minutes before the class with a zoom link. \n\n Please be committed, if you RSVP we do expect you join.", date, timeStr, topic),
 				"You are an English Teacher, and you try to use advanced vocabulary",
 			)
 			if err != nil {
