@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/looplab/fsm"
 )
 
@@ -21,15 +19,9 @@ func newDialogue(fid int) *dialogue {
 			{Name: "waitidiom", Src: []string{"idle"}, Dst: "waitidiom"},
 			{Name: "cancel", Src: []string{"waitoxford", "waitvoice", "idle"}, Dst: "idle"},
 		},
-		fsm.Callbacks{
-			"enter_state": func(e *fsm.Event) { d.enterState(e) },
-		},
+		fsm.Callbacks{},
 	)
 	return &d
-}
-
-func (d *dialogue) enterState(e *fsm.Event) {
-	log.Printf("The dialogue to %d is %s\n", d.FromID, e.Dst)
 }
 
 func (d *dialogue) Event(ev string) error {

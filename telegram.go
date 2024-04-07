@@ -14,6 +14,14 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+type class struct {
+	Topic     string
+	Date      time.Time
+	MessageID int
+}
+
+var currentClass class
+
 var removeVoice = regexp.MustCompile(`\[(\w+)\]`)
 
 func botGo(filter filterFunc) {
@@ -67,8 +75,6 @@ func botGo(filter filterFunc) {
 			fsms[from] = newDialogue(from)
 		}
 		fsm := fsms[from]
-
-		log.Printf("[INFO] state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
 			_ = fsm.state.Event("cancel")
@@ -268,6 +274,81 @@ func botGo(filter filterFunc) {
 			}
 			continue
 		}
+
+		if strings.HasPrefix(strings.ToUpper(text), "/CREATE") {
+			if messg.From.ID != 59701326 {
+				answer := fmt.Sprintf("User %s is not allowed to create new class. Call the support!", messg.From.UserName)
+				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+				msg.ReplyToMessageID = messg.MessageID
+				_, err := bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+
+			}
+
+			// parse date and topic of the class from message which format is /create 2019-01-01 20:00 topic
+			split := strings.Split(text, " ")
+			if len(split) < 4 {
+				log.Printf("Wrong format of the message. Should be /create 2019-01-01 20:00 topic")
+				continue
+			}
+			date := split[1]
+			tm := split[2]
+			topic := strings.Join(split[3:], " ")
+			// parse date time in berlin datazone
+			// time.LoadLocation undefined (type string has no field or method LoadLocation)
+			berlin, err := time.LoadLocation("Europe/Berlin")
+			if err != nil {
+				log.Printf("LoadLocation: %v ", err)
+				continue
+			}
+			// parse date time in berlin datazone
+			t, err := time.ParseInLocation("2006-01-02 15:04", date+" "+tm, berlin)
+			if err != nil {
+				log.Printf("ParseInLocation: %v ", err)
+				continue
+			}
+			// create new class
+			currentClass = class{Date: t, Topic: topic}
+
+			answer, err := getGPTAnswerWithSystem(
+				fmt.Sprintf("Rewrite message: new class is scheduled \n on  %s at %s Berlin Time.\n Topic: *%s* \n In order to join it put any reaction on this message and you will be reminded 10 minutes before the class with a zoom link. \n\n Please be committed, if you RSVP we do expect you join.", date, tm, topic),
+				"You are an English Teacher, and you try to use advanced vocabulary",
+			)
+			if err != nil {
+				log.Printf("GPT err: %v ", err)
+			}
+
+			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+			m, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+				continue
+			}
+			currentClass.MessageID = m.MessageID
+
+			go func() {
+				answer, err := getGPTAnswerWithSystem(
+					fmt.Sprintf("Rewrite message: class with topic *%s* is starting in ten minutes, to join please use this link: https://us02web.zoom.us/j/7249000123?pwd=azdzRVJtR2lQMmxYU3lzU0R0dDZydz09 \n\n Please remember, we are a small group, everyone attendance is making difference", topic),
+					"You are an English Teacher, and you try to use advanced vocabulary",
+				)
+				if err != nil {
+					log.Printf("GPT err: %v ", err)
+				}
+				log.Printf("I am going to sleep for %s", time.Until(currentClass.Date.Add(-10*time.Minute)))
+				// sleep until the class
+				time.Sleep(time.Until(currentClass.Date.Add(-10 * time.Minute)))
+				// send reminder
+				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
+				_, err = bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				}
+			}()
+
+		}
+
 		if strings.HasPrefix(strings.ToUpper(text), "/SETVOICE") {
 			_ = fsm.state.Event("waitvoice")
 
@@ -304,7 +385,7 @@ func botGo(filter filterFunc) {
 			if filter != nil &&
 				filter(strings.ToUpper(text)) { // || messg.ReplyToMessage != nil &&
 				// messg.ReplyToMessage.From.ID == bot.Self.ID) {
-				log.Printf("GPT request: %s", text)
+				log.Printf("GPT request: %b %s", filter(strings.ToUpper(text)), text)
 				txt, err := getGPTAnswer(text)
 				if err != nil {
 					log.Printf("chat: %v ", err)
@@ -370,9 +451,15 @@ func botGo(filter filterFunc) {
 type filterFunc func(string) bool
 
 func generatorOfContainFuncs(keywords []string) filterFunc {
+	if len(keywords) == 1 {
+		return func(msg string) bool {
+			return false
+		}
+	}
 	return func(msg string) bool {
 		for _, keyword := range keywords {
 			if strings.Contains(strings.ToUpper(msg), strings.ToUpper(keyword)) {
+				log.Printf("keyword: %s <- %s", keyword, msg)
 				return true
 			}
 		}
