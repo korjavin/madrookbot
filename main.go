@@ -24,17 +24,10 @@ var (
 		"Raveena":  true,
 		"Geraint":  true,
 	}
-
-	prefs map[int]string
 )
 
 func main() {
-	var err error
-	prefs, err = GetAllVoices()
-	if err != nil {
-		log.Printf("Error getting all voices: %v", err)
-		prefs = make(map[int]string)
-	}
+
 	// print all env
 	for _, e := range os.Environ() {
 		log.Println(e)
