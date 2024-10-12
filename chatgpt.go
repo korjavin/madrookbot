@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -21,53 +23,35 @@ func initGPT() {
 		Role:    openai.ChatMessageRoleSystem,
 		Content: os.Getenv("GPT_SYSTEM_MSG"),
 	}
+	if os.Getenv("GPT_BUDDY") != "" {
+		systemMsg.Content = strings.ReplaceAll(systemMsg.Content, "GPT_BUDDY", "@"+os.Getenv("GPT_BUDDY"))
+	}
 }
 
-func getGPTAnswerWithSystem(msg, system string) (string, error) {
+func getGPTAnswer(msg []*tgbotapi.Message) (string, error) {
 	ctx := context.Background()
+
+	messages := make([]openai.ChatCompletionMessage, len(msg)+1)
+
+	messages[0] = systemMsg
+
+	for i, m := range msg {
+		messages[len(msg)-i] = openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Name:    m.From.UserName,
+			Content: m.Text,
+		}
+	}
+
 	resp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: os.Getenv("GPT_MODEL"),
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: os.Getenv("GPT_SYSTEM_MSG"),
-				},
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: msg,
-				},
-			},
-		},
-	)
-	if err != nil {
-		log.Printf("ChatCompletion error: %v\n", err)
-		return "", err
-	}
+			Model:    os.Getenv("GPT_MODEL"),
+			Messages: messages,
+		})
 
-	if len(resp.Choices) > 0 {
-		return resp.Choices[0].Message.Content, nil
-	}
+	log.Printf("Debug: messages %v", messages)
 
-	return "", fmt.Errorf("no answer")
-}
-
-func getGPTAnswer(msg string) (string, error) {
-	ctx := context.Background()
-	resp, err := client.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model: os.Getenv("GPT_MODEL"),
-			Messages: []openai.ChatCompletionMessage{
-				systemMsg,
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: msg,
-				},
-			},
-		},
-	)
 	if err != nil {
 		log.Printf("ChatCompletion error: %v\n", err)
 		return "", err
