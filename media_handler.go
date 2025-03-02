@@ -9,44 +9,6 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-// handleMediaSuggestion checks if a message contains a media suggestion
-// and handles it accordingly
-func handleMediaSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	// Only process in group chats
-	if !message.Chat.IsGroup() && !message.Chat.IsSuperGroup() {
-		return
-	}
-
-	// Get class group ID
-	classGroupID, err := getClassGroupID()
-	if err != nil || int64(message.Chat.ID) != classGroupID {
-		return
-	}
-
-	// Check if message contains a suggestion
-	suggestedURL := ExtractSuggestionFromMessage(message.Text)
-	if suggestedURL == "" {
-		return
-	}
-
-	// Add to database
-	_, err = AddMediaSuggestion(suggestedURL, message.From.UserName)
-	if err != nil {
-		log.Printf("Error adding media suggestion: %v", err)
-		return
-	}
-
-	// Acknowledge the suggestion
-	reply := fmt.Sprintf("Thanks for your suggestion, @%s! I've added it to our collection.",
-		message.From.UserName)
-	msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-	msg.ReplyToMessageID = message.MessageID
-	_, err = bot.Send(msg)
-	if err != nil {
-		log.Printf("Error sending suggestion acknowledgment: %v", err)
-	}
-}
-
 // handleMediaSelection handles the selection of media by the owner
 func handleMediaSelection(bot *tgbotapi.BotAPI, message *tgbotapi.Message) bool {
 	// Only process in group chats
