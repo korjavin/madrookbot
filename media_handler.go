@@ -69,7 +69,6 @@ func handleMediaSelection(bot *tgbotapi.BotAPI, message *tgbotapi.Message) bool 
 		selected.Suggester)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, announcement)
-	msg.ParseMode = "Markdown"
 	sentMsg, err := bot.Send(msg)
 	if err != nil {
 		log.Printf("Error sending selection announcement: %v", err)
@@ -197,7 +196,7 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	reply := fmt.Sprintf("Successfully deleted suggestion: [%s](%s)",
 		truncateURL(suggestion.URL), suggestion.URL)
 	msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-	msg.ParseMode = "Markdown"
+	//msg.ParseMode = "Markdown"
 	msg.ReplyToMessageID = message.MessageID
 	_, err = bot.Send(msg)
 	if err != nil {
