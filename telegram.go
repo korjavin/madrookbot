@@ -67,7 +67,6 @@ func botGo(filter filterFunc) {
 		text = messg.Text
 		from = messg.From.ID
 
-		go AddActivity(messg.From.UserName, messg.Chat.Title, time.Now().Unix())
 		if messg.Chat.IsGroup() || messg.Chat.IsSuperGroup() {
 			// Get class group ID
 			classGroupID, err := getClassGroupID()
@@ -173,20 +172,6 @@ func botGo(filter filterFunc) {
 
 		default:
 			log.Printf("[INFO] uncovered state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
-		}
-
-		if strings.HasPrefix(strings.ToUpper(text), "/CENSURE") {
-			if messg.From.FirstName != "engelbart" {
-				log.Printf("User %s tried to use admin command", messg.From.UserName)
-			}
-			if messg.Chat.IsGroup() {
-				name, ts := GetSilentMoreThan14Days(messg.Chat.Title)
-				log.Printf("Silent %s for 14 days, since %s", name, time.Unix(ts, 0))
-			} else {
-				groupname := strings.Split(messg.Text, " ")[1]
-				name, ts := GetSilentMoreThan14Days(groupname)
-				log.Printf("Silent %s for 14 days, since %s", name, time.Unix(ts, 0))
-			}
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
