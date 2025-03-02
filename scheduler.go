@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -20,21 +19,6 @@ const (
 	WednesdayTime = "12:00" // Wednesday 12:00 Berlin - present list for selection
 	SundayTime    = "17:00" // Sunday 17:00 Berlin - remind about upcoming call
 )
-
-// getClassGroupID returns the Telegram group ID where the class is held
-func getClassGroupID() (int64, error) {
-	groupIDStr := os.Getenv("CLASS_GROUP_ID")
-	if groupIDStr == "" {
-		return 0, fmt.Errorf("CLASS_GROUP_ID environment variable not set")
-	}
-
-	groupID, err := strconv.ParseInt(groupIDStr, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid CLASS_GROUP_ID: %v", err)
-	}
-
-	return groupID, nil
-}
 
 // scheduleMediaTasks runs the scheduled tasks for media management
 func scheduleMediaTasks() {
@@ -62,7 +46,7 @@ func scheduleMediaTasks() {
 		now := time.Now().In(loc)
 
 		// Calculate time until next check (15 minute intervals)
-		nextCheck := now.Add(time.Minute * time.Duration(15))
+		nextCheck := now.Add(time.Minute)
 
 		// Sleep until next check
 		time.Sleep(time.Until(nextCheck))
@@ -104,7 +88,7 @@ func sendMondayReminder(bot *tgbotapi.BotAPI, groupID int64) {
 	message += FormatMediaList(suggestions)
 
 	msg := tgbotapi.NewMessage(groupID, message)
-	msg.ParseMode = "Markdown"
+	//msg.ParseMode = "Markdown"
 
 	_, err = bot.Send(msg)
 	if err != nil {
@@ -147,7 +131,7 @@ func sendWednesdayList(bot *tgbotapi.BotAPI, groupID int64) {
 	message += FormatMediaList(suggestions)
 
 	msg := tgbotapi.NewMessage(groupID, message)
-	msg.ParseMode = "Markdown"
+	//msg.ParseMode = "Markdown"
 
 	_, err = bot.Send(msg)
 	if err != nil {
@@ -186,7 +170,7 @@ func sendSundayReminder(bot *tgbotapi.BotAPI, groupID int64) {
 		selected.Suggester)
 
 	msg := tgbotapi.NewMessage(groupID, message)
-	msg.ParseMode = "Markdown"
+	//msg.ParseMode = "Markdown"
 
 	_, err = bot.Send(msg)
 	if err != nil {

@@ -133,7 +133,7 @@ func DeleteMedia(id int64) error {
 func GetMediaSuggestionByID(id int64) (MediaSuggestion, error) {
 	var suggestion MediaSuggestion
 	var suggestedAt string
-	
+
 	err := db.QueryRow(`
 		SELECT id, url, suggester, suggested_at, weeks_active, selected 
 		FROM media_suggestions 
@@ -146,17 +146,17 @@ func GetMediaSuggestionByID(id int64) (MediaSuggestion, error) {
 		&suggestion.WeeksActive,
 		&suggestion.Selected,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return MediaSuggestion{}, nil
 		}
 		return MediaSuggestion{}, err
 	}
-	
+
 	// Parse the timestamp
 	suggestion.SuggestedAt, _ = time.Parse(time.RFC3339, suggestedAt)
-	
+
 	return suggestion, nil
 }
 
@@ -229,9 +229,8 @@ func FormatMediaList(suggestions []MediaSuggestion) string {
 	sb.WriteString("📋 *Current Media Suggestions*\n\n")
 
 	for i, suggestion := range suggestions {
-		sb.WriteString(fmt.Sprintf("%d. [%s](%s) (by @%s, %d week(s))\n",
+		sb.WriteString(fmt.Sprintf("%d. (%s) (by @%s, %d week(s))\n",
 			i+1,
-			truncateURL(suggestion.URL),
 			suggestion.URL,
 			suggestion.Suggester,
 			suggestion.WeeksActive))
