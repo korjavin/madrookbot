@@ -110,6 +110,7 @@ func showCurrentMedia(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	mediaList := FormatMediaList(suggestions)
 	msg := tgbotapi.NewMessage(message.Chat.ID, mediaList)
 	//msg.ParseMode = "Markdown"
+	msg.DisableWebPagePreview = true
 	msg.ReplyToMessageID = message.MessageID
 	_, err = bot.Send(msg)
 	if err != nil {
