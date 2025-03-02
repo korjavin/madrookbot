@@ -35,10 +35,18 @@ func main() {
 		log.Printf("Error getting all voices: %v", err)
 		prefs = make(map[int]string)
 	}
+	
+	// Initialize media suggestions database
+	err = initMediaSuggestions()
+	if err != nil {
+		log.Printf("Error initializing media suggestions: %v", err)
+	}
+	
 	// print all env
 	for _, e := range os.Environ() {
 		log.Println(e)
 	}
+	
 	var ff filterFunc
 	if os.Getenv("GPT_TOKEN") != "" {
 		log.Printf("GPT_TOKEN is set, using GPT-3")
@@ -46,5 +54,9 @@ func main() {
 		keywords := strings.Split(os.Getenv("GPT_KEYWORDS"), ",")
 		ff = generatorOfContainFuncs(keywords)
 	}
+	
+	// Start scheduled tasks
+	go scheduleMediaTasks()
+	
 	botGo(ff)
 }

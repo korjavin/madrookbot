@@ -71,6 +71,31 @@ func botGo(filter filterFunc) {
 		from = messg.From.ID
 
 		go AddActivity(messg.From.UserName, messg.Chat.Title, time.Now().Unix())
+		if messg.Chat.IsGroup() || messg.Chat.IsSuperGroup() {
+			// Get class group ID
+			classGroupID, err := getClassGroupID()
+			if err == nil && int64(messg.Chat.ID) == classGroupID {
+				// Check if message contains a suggestion
+				suggestedURL := ExtractSuggestionFromMessage(text)
+				if suggestedURL != "" {
+					// Add to database
+					_, err := AddMediaSuggestion(suggestedURL, messg.From.UserName)
+					if err != nil {
+						log.Printf("Error adding media suggestion: %v", err)
+					} else {
+						// Acknowledge the suggestion
+						reply := fmt.Sprintf("Thanks for your suggestion, @%s! I've added it to our collection.",
+							messg.From.UserName)
+						msg := tgbotapi.NewMessage(messg.Chat.ID, reply)
+						msg.ReplyToMessageID = messg.MessageID
+						_, err = bot.Send(msg)
+						if err != nil {
+							log.Printf("Error sending suggestion acknowledgment: %v", err)
+						}
+					}
+				}
+			}
+		}
 
 		if _, ok := fsms[from]; !ok {
 			fsms[from] = newDialogue(from)
@@ -415,20 +440,15 @@ func botGo(filter filterFunc) {
 				continue
 			}
 		}
+		// Handle media commands
+		if strings.HasPrefix(strings.ToUpper(text), "/MEDIA") {
+			showCurrentMedia(bot, messg)
+			continue
+		}
 
-		if strings.Contains(strings.ToUpper(text), "ЧТО НОВОГО") {
-			txt, err := getAndDeleteRandomNews()
-			if err != nil {
-				log.Printf("db: %v ", err)
-				txt = "Все известные мне новости уже показаны"
-			}
-			msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
-			msg.ReplyToMessageID = messg.MessageID
-			_, err = bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-
+		// Handle selection by owner (if message is just a number)
+		if handled := handleMediaSelection(bot, messg); handled {
+			continue
 		}
 
 		if !strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {

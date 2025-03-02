@@ -24,3 +24,13 @@
   - `GPT_TOKEN`: OpenAI API key (optional)
   - `GPT_KEYWORDS`: Keywords to trigger GPT (optional)
   - `OWNER_ID`: Telegram user ID of the bot owner
+  - `CLASS_GROUP_ID`: ID of the Telegram group for class discussions
+
+## Media Management Features
+- Bot collects media suggestions from group members
+- Weekly schedule of notifications:
+  - Monday 15:00 Berlin: Reminder about media collection and current list
+  - Wednesday 12:00 Berlin: Media selection time (owner selects by replying with number)
+  - Sunday 17:00 Berlin: Reminder about upcoming discussion
+- Commands:
+  - `/media`: Show current list of media suggestions
