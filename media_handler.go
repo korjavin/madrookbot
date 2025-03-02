@@ -113,7 +113,7 @@ func showCurrentMedia(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg.ReplyToMessageID = message.MessageID
 	_, err = bot.Send(msg)
 	if err != nil {
-		log.Printf("Error sending media list: %v", err)
+		log.Printf("Error sending media list: %v at %v", err, mediaList)
 	}
 }
 
@@ -194,7 +194,7 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	// Confirm the deletion
-	reply := fmt.Sprintf("Successfully deleted suggestion: [%s](%s)", 
+	reply := fmt.Sprintf("Successfully deleted suggestion: [%s](%s)",
 		truncateURL(suggestion.URL), suggestion.URL)
 	msg := tgbotapi.NewMessage(message.Chat.ID, reply)
 	msg.ParseMode = "Markdown"
