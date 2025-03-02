@@ -19,4 +19,8 @@
 ## Project Structure
 - **Main files**: Single package architecture
 - **Dependencies**: Uses vendored dependencies
-- **Environment**: Uses environment variables for configuration
+- **Environment**: Uses environment variables for configuration:
+  - `BOT_TOKEN`: Telegram bot token
+  - `GPT_TOKEN`: OpenAI API key (optional)
+  - `GPT_KEYWORDS`: Keywords to trigger GPT (optional)
+  - `OWNER_ID`: Telegram user ID of the bot owner

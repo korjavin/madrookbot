@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -276,7 +277,8 @@ func botGo(filter filterFunc) {
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/CREATE") {
-			if messg.From.ID != 59701326 {
+			ownerID, err := getOwnerID()
+			if err != nil || messg.From.ID != ownerID {
 				answer := fmt.Sprintf("User %s is not allowed to create new class. Call the support!", messg.From.UserName)
 				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 				msg.ReplyToMessageID = messg.MessageID
@@ -479,4 +481,21 @@ func generatorOfContainFuncs(keywords []string) filterFunc {
 		}
 		return false
 	}
+}
+
+// getOwnerID returns the Telegram owner ID from the OWNER_ID environment variable
+func getOwnerID() (int, error) {
+	ownerIDStr := os.Getenv("OWNER_ID")
+	if ownerIDStr == "" {
+		// Fallback to default ID if not set
+		return 0, errors.New("owner is not set")
+	}
+
+	ownerID, err := strconv.Atoi(ownerIDStr)
+	if err != nil {
+		log.Printf("Invalid OWNER_ID environment variable: %v", err)
+		return 0, err
+	}
+
+	return ownerID, nil
 }
