@@ -24,7 +24,7 @@ func initGPT() {
 		Content: os.Getenv("GPT_SYSTEM_MSG"),
 	}
 	if os.Getenv("GPT_BUDDY") != "" {
-		systemMsg.Content = strings.ReplaceAll(systemMsg.Content, "GPT_BUDDY", "@"+os.Getenv("GPT_BUDDY"))
+		systemMsg.Content = strings.ReplaceAll(systemMsg.Content, "GPT_BUDDY", os.Getenv("GPT_BUDDY"))
 	}
 }
 
@@ -50,7 +50,9 @@ func getGPTAnswer(msg []*tgbotapi.Message) (string, error) {
 			Messages: messages,
 		})
 
-	log.Printf("Debug: messages %v", messages)
+	if len(messages) < 3 {
+		log.Printf("Debug: messages %v", messages)
+	}
 
 	if err != nil {
 		log.Printf("ChatCompletion error: %v\n", err)

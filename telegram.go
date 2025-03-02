@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	lru "github.com/hashicorp/golang-lru"
@@ -45,48 +46,46 @@ func botGo(buddy string) {
 		if update.Message == nil {
 			continue
 		}
-		var from int
 		var messg *tgbotapi.Message
 
 		if update.Message != nil {
 			messg = update.Message
 		}
 
-		from = messg.From.ID
-
-		if from == bot.Self.ID {
+		if messg.From.ID == bot.Self.ID {
 			continue
 		}
 
 		cache.Add(messg.MessageID, messg)
 
-		if client != nil {
-			if messg.From.UserName == buddy {
-				var dialogue []*tgbotapi.Message
-				dialogue = append(dialogue, messg)
-				chainmsg := messg
-				for chainmsg.ReplyToMessage != nil {
-					if m, exists := cache.Get(chainmsg.ReplyToMessage.MessageID); exists {
-						dialogue = append(dialogue, m.(*tgbotapi.Message))
-						chainmsg = m.(*tgbotapi.Message)
-					} else {
-						break
-					}
+		if strings.Contains(messg.Text, bot.Self.UserName) ||
+			messg.ReplyToMessage != nil && messg.ReplyToMessage.From.UserName == bot.Self.UserName {
+			var dialogue []*tgbotapi.Message
+			dialogue = append(dialogue, messg)
+			chainmsg := messg
+			for chainmsg.ReplyToMessage != nil && len(dialogue) < 10 {
+				if m, exists := cache.Get(chainmsg.ReplyToMessage.MessageID); exists {
+					dialogue = append(dialogue, m.(*tgbotapi.Message))
+					chainmsg = m.(*tgbotapi.Message)
+				} else {
+					break
 				}
-				txt, err := getGPTAnswer(dialogue)
-				if err != nil {
-					log.Printf("chat: %v ", err)
-				}
-				msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
-				msg.ReplyToMessageID = messg.MessageID
-				m, err := bot.Send(msg)
-				if err != nil {
-					log.Printf("Send: %v ", err)
-				}
-				cache.Add(m.MessageID, &m)
-				continue
 			}
-		}
 
+			txt, err := getGPTAnswer(dialogue)
+			if err != nil {
+				log.Printf("chat: %v ", err)
+			}
+
+			msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
+			msg.ReplyToMessageID = messg.MessageID
+
+			m, err := bot.Send(msg)
+			if err != nil {
+				log.Printf("Send: %v ", err)
+			}
+			cache.Add(m.MessageID, &m)
+			continue
+		}
 	}
 }
