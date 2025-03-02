@@ -116,3 +116,91 @@ func showCurrentMedia(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		log.Printf("Error sending media list: %v", err)
 	}
 }
+
+// handleDeleteSuggestion handles the deletion of a media suggestion
+func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	// Check if the message has the format /del N where N is a number
+	text := message.Text
+	if !strings.HasPrefix(strings.ToUpper(text), "/DEL ") {
+		return
+	}
+
+	// Extract the ID from the command
+	parts := strings.Fields(text)
+	if len(parts) != 2 {
+		reply := "Invalid format. Use /del [number] to delete a suggestion."
+		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
+		msg.ReplyToMessageID = message.MessageID
+		bot.Send(msg)
+		return
+	}
+
+	// Parse the number to get the index
+	indexStr := parts[1]
+	index, err := strconv.Atoi(indexStr)
+	if err != nil || index <= 0 {
+		reply := "Invalid number. Please provide a positive number."
+		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
+		msg.ReplyToMessageID = message.MessageID
+		bot.Send(msg)
+		return
+	}
+
+	// Get all suggestions
+	suggestions, err := GetMediaSuggestions()
+	if err != nil {
+		log.Printf("Error getting media suggestions: %v", err)
+		reply := "Sorry, I couldn't retrieve the current media list."
+		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
+		msg.ReplyToMessageID = message.MessageID
+		bot.Send(msg)
+		return
+	}
+
+	// Check if the index is valid
+	if index > len(suggestions) {
+		reply := fmt.Sprintf("Invalid number. There are only %d suggestions.", len(suggestions))
+		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
+		msg.ReplyToMessageID = message.MessageID
+		bot.Send(msg)
+		return
+	}
+
+	// Get the suggestion by index (0-based array vs 1-based user input)
+	suggestion := suggestions[index-1]
+
+	// Check if the user is authorized to delete this suggestion
+	ownerID, err := getOwnerID()
+	isOwner := err == nil && message.From.ID == ownerID
+	isSuggester := message.From.UserName == suggestion.Suggester
+
+	if !isOwner && !isSuggester {
+		reply := "You can only delete your own suggestions, unless you're the owner."
+		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
+		msg.ReplyToMessageID = message.MessageID
+		bot.Send(msg)
+		return
+	}
+
+	// Delete the suggestion
+	err = DeleteMedia(suggestion.ID)
+	if err != nil {
+		log.Printf("Error deleting suggestion: %v", err)
+		reply := "Sorry, I couldn't delete the suggestion. Please try again later."
+		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
+		msg.ReplyToMessageID = message.MessageID
+		bot.Send(msg)
+		return
+	}
+
+	// Confirm the deletion
+	reply := fmt.Sprintf("Successfully deleted suggestion: [%s](%s)", 
+		truncateURL(suggestion.URL), suggestion.URL)
+	msg := tgbotapi.NewMessage(message.Chat.ID, reply)
+	msg.ParseMode = "Markdown"
+	msg.ReplyToMessageID = message.MessageID
+	_, err = bot.Send(msg)
+	if err != nil {
+		log.Printf("Error sending confirmation: %v", err)
+	}
+}

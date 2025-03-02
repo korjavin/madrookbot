@@ -33,4 +33,5 @@
   - Wednesday 12:00 Berlin: Media selection time (owner selects by replying with number)
   - Sunday 17:00 Berlin: Reminder about upcoming discussion
 - Commands:
-  - `/media`: Show current list of media suggestions
+  - `/media` or `/list`: Show current list of media suggestions
+  - `/del [number]`: Delete a suggestion (owner can delete any, users can delete their own)

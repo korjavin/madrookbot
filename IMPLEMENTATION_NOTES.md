@@ -17,7 +17,7 @@
    - Functions for processing media-related Telegram messages
    - Detects suggestions and adds them to the database
    - Handles media selection by the owner
-   - Provides commands to view current media list
+   - Provides commands to view and manage current media list
 
 ## Changes to Existing Files
 
@@ -28,7 +28,8 @@
 2. **telegram.go**
    - Need to integrate the media suggestion detection
    - Need to add handlers for:
-     - `/media` command
+     - `/media` and `/list` commands to show suggestions
+     - `/del [number]` command to delete suggestions
      - Media selection by the owner
 
 3. **Dockerfile**
@@ -52,7 +53,9 @@ To fully integrate this functionality, you'll need to manually apply the changes
 
 These changes will enable the bot to:
 - Detect and store suggestions
-- Respond to the /media command
+- Respond to the /media and /list commands
+- Allow users to delete their own suggestions with /del
+- Allow the owner to delete any suggestion with /del
 - Process media selection by the owner
 - Send scheduled announcements
 

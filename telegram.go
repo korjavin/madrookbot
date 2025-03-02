@@ -349,8 +349,14 @@ func botGo(filter filterFunc) {
 			}
 		}
 		// Handle media commands
-		if strings.HasPrefix(strings.ToUpper(text), "/MEDIA") {
+		if strings.HasPrefix(strings.ToUpper(text), "/MEDIA") || strings.HasPrefix(strings.ToUpper(text), "/LIST") {
 			showCurrentMedia(bot, messg)
+			continue
+		}
+
+		// Handle delete commands
+		if strings.HasPrefix(strings.ToUpper(text), "/DEL ") {
+			handleDeleteSuggestion(bot, messg)
 			continue
 		}
 

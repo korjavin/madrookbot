@@ -123,6 +123,43 @@ func SelectMedia(id int64) error {
 	return err
 }
 
+// DeleteMedia deletes a media suggestion from the database
+func DeleteMedia(id int64) error {
+	_, err := db.Exec("DELETE FROM media_suggestions WHERE id = ?", id)
+	return err
+}
+
+// GetMediaSuggestionByID returns a specific media suggestion by ID
+func GetMediaSuggestionByID(id int64) (MediaSuggestion, error) {
+	var suggestion MediaSuggestion
+	var suggestedAt string
+	
+	err := db.QueryRow(`
+		SELECT id, url, suggester, suggested_at, weeks_active, selected 
+		FROM media_suggestions 
+		WHERE id = ?
+	`, id).Scan(
+		&suggestion.ID,
+		&suggestion.URL,
+		&suggestion.Suggester,
+		&suggestedAt,
+		&suggestion.WeeksActive,
+		&suggestion.Selected,
+	)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return MediaSuggestion{}, nil
+		}
+		return MediaSuggestion{}, err
+	}
+	
+	// Parse the timestamp
+	suggestion.SuggestedAt, _ = time.Parse(time.RFC3339, suggestedAt)
+	
+	return suggestion, nil
+}
+
 // ProcessWeeklyUpdate processes weekly updates for media suggestions
 // - Increments weeks_active counter for unselected items
 // - Removes suggestions older than 6 weeks
