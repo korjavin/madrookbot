@@ -62,13 +62,14 @@ func handleMediaSelection(bot *tgbotapi.BotAPI, message *tgbotapi.Message) bool 
 
 	// Announce selection
 	announcement := fmt.Sprintf("🎉 *Media Selected for This Week*\n\n"+
-		"We'll be discussing:\n[%s](%s)\n\nSuggested by: @%s\n\n"+
+		"We'll be discussing:\n(%s)\n\nSuggested by: @%s\n\n"+
 		"Join our discussion on Sunday at 18:00 Berlin time!",
-		truncateURL(selected.URL),
 		selected.URL,
 		selected.Suggester)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, announcement)
+	msg.DisableWebPagePreview = true
+	msg.ParseMode = ""
 	sentMsg, err := bot.Send(msg)
 	if err != nil {
 		log.Printf("Error sending selection announcement: %v", err)
