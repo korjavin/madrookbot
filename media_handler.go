@@ -1,29 +1,31 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 // handleMediaSelection handles the selection of media by the owner
-func handleMediaSelection(bot *tgbotapi.BotAPI, message *tgbotapi.Message) bool {
+func handleMediaSelection(b *bot.Bot, ctx context.Context, message *models.Message) bool {
 	// Only process in group chats
-	if !message.Chat.IsGroup() && !message.Chat.IsSuperGroup() {
+	if message.Chat.Type != "group" && message.Chat.Type != "supergroup" {
 		return false
 	}
 
 	// Get class group ID and owner ID
 	classGroupID, err := getClassGroupID()
-	if err != nil || int64(message.Chat.ID) != classGroupID {
+	if err != nil || message.Chat.ID != classGroupID {
 		return false
 	}
 
 	ownerID, err := getOwnerID()
-	if err != nil || message.From.ID != ownerID {
+	if err != nil || message.From.ID != int64(ownerID) {
 		return false
 	}
 
@@ -44,9 +46,12 @@ func handleMediaSelection(bot *tgbotapi.BotAPI, message *tgbotapi.Message) bool 
 	// Check if selection is valid
 	if selectionNum <= 0 || selectionNum > len(suggestions) {
 		reply := fmt.Sprintf("Invalid selection number. Please choose a number between 1 and %d.", len(suggestions))
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             reply,
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return true
 	}
 
@@ -67,59 +72,61 @@ func handleMediaSelection(bot *tgbotapi.BotAPI, message *tgbotapi.Message) bool 
 		selected.URL,
 		selected.Suggester)
 
-	msg := tgbotapi.NewMessage(message.Chat.ID, announcement)
-	msg.DisableWebPagePreview = true
-	msg.ParseMode = ""
-	sentMsg, err := bot.Send(msg)
+	params := &bot.SendMessageParams{
+		ChatID:                message.Chat.ID,
+		Text:                  announcement,
+		DisableWebPagePreview: true,
+		ReplyToMessageID:      message.ID,
+	}
+
+	sentMsg, err := b.SendMessage(ctx, params)
 	if err != nil {
 		log.Printf("Error sending selection announcement: %v", err)
 		return true
-
 	}
 
-	_ = sentMsg
-	/*
-
-		// Doesnt work because of tgbotapi limits. Uncomment it when migrate to another lib
-
-		// Pin the message
-		pinCfg := tgbotapi.NewPinChatMessageConfig(message.Chat.ID, sentMsg.MessageID)
-		pinCfg.DisableNotification = false
-		_, err = bot.Request(pinCfg)
-		if err != nil {
-			log.Printf("Error pinning message: %v", err)
-		}
-
-	*/
+	// Pin message
+	pinParams := &bot.PinChatMessageParams{
+		ChatID:    message.Chat.ID,
+		MessageID: sentMsg.ID,
+	}
+	_, err = b.PinChatMessage(ctx, pinParams)
+	if err != nil {
+		log.Printf("Error pinning message: %v", err)
+	}
 
 	return true
 }
 
 // showCurrentMedia shows the current media list
-func showCurrentMedia(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+func showCurrentMedia(b *bot.Bot, ctx context.Context, message *models.Message) {
 	suggestions, err := GetMediaSuggestions()
 	if err != nil {
 		log.Printf("Error getting media suggestions: %v", err)
-		reply := "Sorry, I couldn't retrieve the current media list."
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             "Sorry, I couldn't retrieve the current media list.",
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return
 	}
 
 	mediaList := FormatMediaList(suggestions)
-	msg := tgbotapi.NewMessage(message.Chat.ID, mediaList)
-	//msg.ParseMode = "Markdown"
-	msg.DisableWebPagePreview = true
-	msg.ReplyToMessageID = message.MessageID
-	_, err = bot.Send(msg)
+	params := &bot.SendMessageParams{
+		ChatID:                message.Chat.ID,
+		Text:                  mediaList,
+		DisableWebPagePreview: true,
+		ReplyToMessageID:      message.ID,
+	}
+	_, err = b.SendMessage(ctx, params)
 	if err != nil {
 		log.Printf("Error sending media list: %v at %v", err, mediaList)
 	}
 }
 
 // handleDeleteSuggestion handles the deletion of a media suggestion
-func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+func handleDeleteSuggestion(b *bot.Bot, ctx context.Context, message *models.Message) {
 	// Check if the message has the format /del N where N is a number
 	text := message.Text
 	if !strings.HasPrefix(strings.ToUpper(text), "/DEL ") {
@@ -130,9 +137,12 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	parts := strings.Fields(text)
 	if len(parts) != 2 {
 		reply := "Invalid format. Use /del [number] to delete a suggestion."
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             reply,
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return
 	}
 
@@ -141,9 +151,12 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	index, err := strconv.Atoi(indexStr)
 	if err != nil || index <= 0 {
 		reply := "Invalid number. Please provide a positive number."
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             reply,
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return
 	}
 
@@ -152,18 +165,24 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if err != nil {
 		log.Printf("Error getting media suggestions: %v", err)
 		reply := "Sorry, I couldn't retrieve the current media list."
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             reply,
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return
 	}
 
 	// Check if the index is valid
 	if index > len(suggestions) {
 		reply := fmt.Sprintf("Invalid number. There are only %d suggestions.", len(suggestions))
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             reply,
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return
 	}
 
@@ -172,14 +191,17 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	// Check if the user is authorized to delete this suggestion
 	ownerID, err := getOwnerID()
-	isOwner := err == nil && message.From.ID == ownerID
-	isSuggester := message.From.UserName == suggestion.Suggester
+	isOwner := err == nil && message.From.ID == int64(ownerID)
+	isSuggester := message.From.Username == suggestion.Suggester
 
 	if !isOwner && !isSuggester {
 		reply := "You can only delete your own suggestions, unless you're the owner."
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             reply,
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return
 	}
 
@@ -188,19 +210,24 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if err != nil {
 		log.Printf("Error deleting suggestion: %v", err)
 		reply := "Sorry, I couldn't delete the suggestion. Please try again later."
-		msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
+		params := &bot.SendMessageParams{
+			ChatID:           message.Chat.ID,
+			Text:             reply,
+			ReplyToMessageID: message.ID,
+		}
+		b.SendMessage(ctx, params)
 		return
 	}
 
 	// Confirm the deletion
 	reply := fmt.Sprintf("Successfully deleted suggestion: [%s](%s)",
 		truncateURL(suggestion.URL), suggestion.URL)
-	msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-	//msg.ParseMode = "Markdown"
-	msg.ReplyToMessageID = message.MessageID
-	_, err = bot.Send(msg)
+	params := &bot.SendMessageParams{
+		ChatID:           message.Chat.ID,
+		Text:             reply,
+		ReplyToMessageID: message.ID,
+	}
+	_, err = b.SendMessage(ctx, params)
 	if err != nil {
 		log.Printf("Error sending confirmation: %v", err)
 	}
