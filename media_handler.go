@@ -78,19 +78,6 @@ func handleMediaSelection(bot *tgbotapi.BotAPI, message *tgbotapi.Message) bool 
 	}
 
 	_ = sentMsg
-	/*
-
-		// Doesnt work because of tgbotapi limits. Uncomment it when migrate to another lib
-
-		// Pin the message
-		pinCfg := tgbotapi.NewPinChatMessageConfig(message.Chat.ID, sentMsg.MessageID)
-		pinCfg.DisableNotification = false
-		_, err = bot.Request(pinCfg)
-		if err != nil {
-			log.Printf("Error pinning message: %v", err)
-		}
-
-	*/
 
 	return true
 }
@@ -109,7 +96,6 @@ func showCurrentMedia(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	mediaList := FormatMediaList(suggestions)
 	msg := tgbotapi.NewMessage(message.Chat.ID, mediaList)
-	//msg.ParseMode = "Markdown"
 	msg.DisableWebPagePreview = true
 	msg.ReplyToMessageID = message.MessageID
 	_, err = bot.Send(msg)
@@ -198,7 +184,6 @@ func handleDeleteSuggestion(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	reply := fmt.Sprintf("Successfully deleted suggestion: [%s](%s)",
 		truncateURL(suggestion.URL), suggestion.URL)
 	msg := tgbotapi.NewMessage(message.Chat.ID, reply)
-	//msg.ParseMode = "Markdown"
 	msg.ReplyToMessageID = message.MessageID
 	_, err = bot.Send(msg)
 	if err != nil {

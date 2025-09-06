@@ -45,10 +45,6 @@ func main() {
 		log.Printf("Error initializing media suggestions: %v", err)
 	}
 
-	// print all env
-	for _, e := range os.Environ() {
-		log.Println(e)
-	}
 
 	var ff filterFunc
 	if os.Getenv("GPT_TOKEN") != "" {
