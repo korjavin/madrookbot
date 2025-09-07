@@ -8,7 +8,7 @@ A Telegram bot for managing group discussions and media suggestions.
 - Text-to-speech using AWS Polly (mention the bot to have text read aloud)
 - Voice selection with `/setvoice` command
 - GPT-3 integration for smart responses
-- Scheduled class management 
+- Scheduled class management
 
 ### Media Management
 The bot helps manage a weekly discussion group by:
@@ -26,7 +26,7 @@ The bot helps manage a weekly discussion group by:
 3. **Media Lifecycle**
    - Unselected media is carried over to next week
    - Media suggestions are removed after 6 weeks if not selected
-   - Selected media is announced and the message is pinned in the chat
+   - Selected media is announced. The original implementation intended to pin this message, but this is currently disabled due to limitations in the Telegram library being used.
 
 ## Commands
 
@@ -35,7 +35,7 @@ The bot helps manage a weekly discussion group by:
 - `/media` or `/list` - Shows the current list of media suggestions
 - `/del [number]` - Delete a suggestion (owner can delete any, users can delete their own)
 - `/idiom [term]` - Shows the definition of an idiom
-- `/create [date] [time] [topic]` - Create a new class (owner only)
+- `/create [date] [time] [topic]` - Create a new class (owner only). **Note: This command is not yet implemented.**
 - `/cancel` - Cancel current command
 
 ## Environment Variables
@@ -45,17 +45,46 @@ The bot helps manage a weekly discussion group by:
 - `GPT_KEYWORDS` - Keywords to trigger GPT (optional)
 - `OWNER_ID` - Telegram user ID of the bot owner
 - `CLASS_GROUP_ID` - ID of the Telegram group for class discussions
+- `AWS_ACCESS_KEY_ID` - AWS access key ID for Polly
+- `AWS_SECRET_ACCESS_KEY` - AWS secret access key for Polly
+- `AWS_REGION` - AWS region for Polly (e.g., `us-west-2`)
 
 ## Running
 
-With Docker:
+### With Docker
 ```bash
 docker build -t madrookbot .
-docker run -e BOT_TOKEN=your_token -e OWNER_ID=your_id -e CLASS_GROUP_ID=group_id madrookbot
+docker run \
+  -e BOT_TOKEN=your_token \
+  -e OWNER_ID=your_id \
+  -e CLASS_GROUP_ID=group_id \
+  -e AWS_ACCESS_KEY_ID=your_aws_key \
+  -e AWS_SECRET_ACCESS_KEY=your_aws_secret \
+  -e AWS_REGION=your_aws_region \
+  madrookbot
 ```
 
-Without Docker:
+### Without Docker
 ```bash
 go build -mod=vendor -o madrookbot
 ./madrookbot
 ```
+
+## Development
+
+### Build & Test
+- Build: `go build -mod=vendor -o madrookbot`
+- Run all tests: `go test -v ./...`
+- Run a single test: `go test -v -run=TestMyFunction`
+
+### Code Style
+- Standard Go formatting (`gofmt`)
+- Group standard library imports first, then third-party packages.
+- Use CamelCase for exported names and lowerCamelCase for unexported names.
+- Check errors immediately and use an early return pattern.
+- Add comments for all exported functions and types.
+
+### Project Structure
+- The project follows a single-package architecture.
+- Dependencies are vendored.
+- Configuration is managed through environment variables.

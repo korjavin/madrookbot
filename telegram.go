@@ -17,6 +17,8 @@ type class struct {
 	MessageID int
 }
 
+const defaultVoice = "Raveena"
+
 var currentClass class
 
 var removeVoice = regexp.MustCompile(`\[(\w+)\]`)
@@ -283,7 +285,7 @@ func botGo(filter filterFunc) {
 		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
 		text = removeVoice.ReplaceAllLiteralString(text, "")
 
-		voice := "Raveena"
+		voice := defaultVoice
 		if v, ok := prefs[messg.From.ID]; ok {
 			voice = v
 		}
