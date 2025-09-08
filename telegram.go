@@ -50,19 +50,16 @@ func botGo(filter filterFunc) {
 	}
 
 	for update := range updates {
-		if update.Message == nil && update.EditedMessage == nil && update.CallbackQuery == nil {
+		var messg *tgbotapi.Message
+		if update.Message != nil {
+			messg = update.Message
+		} else if update.EditedMessage != nil {
+			messg = update.EditedMessage
+		} else {
 			continue
 		}
 		var text string
 		var from int
-		var messg *tgbotapi.Message
-
-		if update.Message != nil {
-			messg = update.Message
-		}
-		if update.EditedMessage != nil {
-			messg = update.EditedMessage
-		}
 
 		text = messg.Text
 		from = messg.From.ID
@@ -98,7 +95,9 @@ func botGo(filter filterFunc) {
 		}
 		fsm := fsms[from]
 
-		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
+		command := strings.ToUpper(strings.TrimSpace(text))
+
+		if strings.HasPrefix(command, "/CANCEL") {
 			_ = fsm.state.Event("cancel")
 
 			msg := tgbotapi.NewMessage(messg.Chat.ID, "Command canceled.")
@@ -174,7 +173,7 @@ func botGo(filter filterFunc) {
 			log.Printf("[INFO] uncovered state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
 		}
 
-		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
+		if strings.HasPrefix(command, "/HELP") {
 			answer := `You can send me any text to read aloud, but please mention me by @` + name +
 				` /oxford term :  show the definition from Oxford dictionary
 			   /idiom term  :  show the definition from idioms.thefreedictionary.com`
@@ -187,7 +186,7 @@ func botGo(filter filterFunc) {
 			}
 			continue
 		}
-		if strings.HasPrefix(strings.ToUpper(text), "/IDIOM") {
+		if strings.HasPrefix(command, "/IDIOM") {
 			split := strings.Split(text, " ")
 			answer := ""
 			if len(split) < 2 {
@@ -209,7 +208,7 @@ func botGo(filter filterFunc) {
 			continue
 		}
 
-		if strings.HasPrefix(strings.ToUpper(text), "/SETVOICE") {
+		if strings.HasPrefix(command, "/SETVOICE") {
 			_ = fsm.state.Event("waitvoice")
 
 			var buttons []tgbotapi.KeyboardButton
@@ -260,13 +259,13 @@ func botGo(filter filterFunc) {
 			}
 		}
 		// Handle media commands
-		if strings.HasPrefix(strings.ToUpper(text), "/MEDIA") || strings.HasPrefix(strings.ToUpper(text), "/LIST") {
+		if strings.HasPrefix(command, "/MEDIA") || strings.HasPrefix(command, "/LIST") {
 			showCurrentMedia(bot, messg)
 			continue
 		}
 
 		// Handle delete commands
-		if strings.HasPrefix(strings.ToUpper(text), "/DEL ") {
+		if strings.HasPrefix(command, "/DEL ") {
 			handleDeleteSuggestion(bot, messg)
 			continue
 		}

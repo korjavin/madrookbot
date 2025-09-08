@@ -35,7 +35,6 @@ The bot helps manage a weekly discussion group by:
 - `/media` or `/list` - Shows the current list of media suggestions
 - `/del [number]` - Delete a suggestion (owner can delete any, users can delete their own)
 - `/idiom [term]` - Shows the definition of an idiom
-- `/create [date] [time] [topic]` - Create a new class (owner only). **Note: This command is not yet implemented.**
 - `/cancel` - Cancel current command
 
 ## Environment Variables

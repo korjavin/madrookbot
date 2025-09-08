@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	//	defaultVoice = "Raveena" <- hardcoded in makeSpeech
 	voices = map[string]bool{
 		"Russell":  true,
 		"Nicole":   true,
