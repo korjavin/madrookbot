@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  madrookbot:
+    # The image tag will be replaced by the GitHub Actions workflow
+    image: ghcr.io/korjavin/madrookbot:latest
+    container_name: madrookbot
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - GPT_TOKEN=${GPT_TOKEN}
+      - GPT_KEYWORDS=${GPT_KEYWORDS}
+      - OWNER_ID=${OWNER_ID}
+      - CLASS_GROUP_ID=${CLASS_GROUP_ID}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ELEVENLABS_VOICE_NAME=${ELEVENLABS_VOICE_NAME}
+      - ELEVENLABS_MODEL_ID=${ELEVENLABS_MODEL_ID}
+    volumes:
+      - ./data:/bot/data
+    restart: unless-stopped
