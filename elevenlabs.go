@@ -2,93 +2,145 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"sync"
-
-	"github.com/mutablelogic/go-client/pkg/elevenlabs"
 )
 
 var (
-	elevenLabsClient *elevenlabs.Client
-	elevenLabsVoiceID string
-	elevenLabsModelID string
-	elevenLabsOnce sync.Once
-	elevenLabsInitErr error
+	elevenLabsAPIKey   string
+	elevenLabsVoiceID  string
+	elevenLabsModelID  string
+	elevenLabsOnce     sync.Once
+	elevenLabsInitErr  error
 )
+
+type voicesResponse struct {
+	Voices []struct {
+		VoiceID string `json:"voice_id"`
+		Name    string `json:"name"`
+	} `json:"voices"`
+}
 
 // initElevenLabs initializes the ElevenLabs client and caches the voice ID.
 // This is called once to avoid repeated API calls for voice lookups.
 func initElevenLabs() {
 	elevenLabsOnce.Do(func() {
-		apiKey := os.Getenv("ELEVENLABS_API_KEY")
-		if apiKey == "" {
-			elevenLabsInitErr = log.Output(2, "[ERROR] ELEVENLABS_API_KEY is not set")
+		elevenLabsAPIKey = os.Getenv("ELEVENLABS_API_KEY")
+		if elevenLabsAPIKey == "" {
+			elevenLabsInitErr = fmt.Errorf("ELEVENLABS_API_KEY is not set")
+			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
 
 		voiceName := os.Getenv("ELEVENLABS_VOICE_NAME")
 		if voiceName == "" {
-			elevenLabsInitErr = log.Output(2, "[ERROR] ELEVENLABS_VOICE_NAME is not set")
+			elevenLabsInitErr = fmt.Errorf("ELEVENLABS_VOICE_NAME is not set")
+			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
 
 		elevenLabsModelID = os.Getenv("ELEVENLABS_MODEL_ID")
 		if elevenLabsModelID == "" {
-			elevenLabsInitErr = log.Output(2, "[ERROR] ELEVENLABS_MODEL_ID is not set")
+			elevenLabsInitErr = fmt.Errorf("ELEVENLABS_MODEL_ID is not set")
+			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
 
-		// Create a new client
-		client, err := elevenlabs.New(apiKey)
+		// Fetch available voices to find the voice ID
+		req, err := http.NewRequest("GET", "https://api.elevenlabs.io/v1/voices", nil)
 		if err != nil {
-			log.Printf("[ERROR] Could not create elevenlabs client: %v", err)
-			elevenLabsInitErr = err
+			elevenLabsInitErr = fmt.Errorf("could not create request: %v", err)
+			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
-		elevenLabsClient = client
+		req.Header.Set("xi-api-key", elevenLabsAPIKey)
 
-		// Find the voice ID from the voice name (only done once at startup)
-		voices, err := client.Voices()
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			log.Printf("[ERROR] Could not get voices from elevenlabs: %v", err)
-			elevenLabsInitErr = err
+			elevenLabsInitErr = fmt.Errorf("could not fetch voices: %v", err)
+			log.Printf("[ERROR] %v", elevenLabsInitErr)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			elevenLabsInitErr = fmt.Errorf("API returned status %d", resp.StatusCode)
+			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
 
-		for _, v := range voices {
+		var voicesResp voicesResponse
+		if err := json.NewDecoder(resp.Body).Decode(&voicesResp); err != nil {
+			elevenLabsInitErr = fmt.Errorf("could not decode voices response: %v", err)
+			log.Printf("[ERROR] %v", elevenLabsInitErr)
+			return
+		}
+
+		// Find the voice ID by name
+		for _, v := range voicesResp.Voices {
 			if v.Name == voiceName {
-				elevenLabsVoiceID = v.Id
+				elevenLabsVoiceID = v.VoiceID
 				log.Printf("[INFO] ElevenLabs initialized with voice '%s' (ID: %s)", voiceName, elevenLabsVoiceID)
 				return
 			}
 		}
 
-		log.Printf("[ERROR] Voice '%s' not found", voiceName)
-		elevenLabsInitErr = log.Output(2, "[ERROR] Voice not found")
+		elevenLabsInitErr = fmt.Errorf("voice '%s' not found", voiceName)
+		log.Printf("[ERROR] %v", elevenLabsInitErr)
 	})
 }
 
 // makeSpeech generates speech from text using the ElevenLabs API.
 // It returns an io.ReadCloser with the audio data.
 func makeSpeech(text string) io.ReadCloser {
-	// Initialize ElevenLabs client if not already done
+	// Initialize ElevenLabs if not already done
 	initElevenLabs()
 
 	if elevenLabsInitErr != nil {
 		return nil
 	}
 
-	// Create a buffer to store the audio
-	var buf bytes.Buffer
+	// Prepare request body
+	requestBody := map[string]interface{}{
+		"text":     text,
+		"model_id": elevenLabsModelID,
+	}
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		log.Printf("[ERROR] Could not marshal request: %v", err)
+		return nil
+	}
 
-	// Generate the speech
-	_, err := elevenLabsClient.TextToSpeech(&buf, elevenLabsVoiceID, text, elevenlabs.OptModel(elevenLabsModelID))
+	// Create HTTP request for text-to-speech
+	url := fmt.Sprintf("https://api.elevenlabs.io/v1/text-to-speech/%s", elevenLabsVoiceID)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("[ERROR] Could not create request: %v", err)
+		return nil
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("xi-api-key", elevenLabsAPIKey)
+
+	// Make the request
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Printf("[ERROR] Could not generate speech: %v", err)
 		return nil
 	}
 
-	return io.NopCloser(&buf)
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		log.Printf("[ERROR] API returned status %d: %s", resp.StatusCode, string(body))
+		return nil
+	}
+
+	// Return the audio stream directly
+	return resp.Body
 }
