@@ -16,11 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -33,23 +28,21 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@v5
         with:
-          context: .
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
 
       - name: Update and commit docker-compose.yml
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git checkout -B deploy
-          sed -i "s|image: ghcr.io/${{ github.repository }}:.*|image: ghcr.io/${{ github.repository }}:${{ github.sha }}|g" docker-compose.yml
+          sed -i "s|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:.*|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}|g" docker-compose.yml
           git add docker-compose.yml
           git commit -m "ci: Update image tag to ${{ github.sha }}"
           git push origin deploy --force
 
       - name: Trigger Portainer Redeploy Webhook
-        if: secrets.PORTAINER_REDEPLOY_HOOK != ''
-        run: |
-          curl -X POST "${{ secrets.PORTAINER_REDEPLOY_HOOK }}"
+        uses: distributhor/workflow-webhook@v3
+        with:
+          webhook_url: ${{ secrets.PORTAINER_REDEPLOY_HOOK }}
+          webhook_secret: "trigger"
