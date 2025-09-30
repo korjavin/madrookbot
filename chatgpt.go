@@ -32,7 +32,7 @@ func getGPTAnswerWithSystem(msg, system string) (string, error) {
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: os.Getenv("GPT_SYSTEM_MSG"),
+					Content: system,
 				},
 				{
 					Role:    openai.ChatMessageRoleUser,

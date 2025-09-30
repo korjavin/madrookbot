@@ -169,6 +169,44 @@ func botGo(filter filterFunc) {
 			update.EditedMessage != nil {
 			continue
 		}
+
+		// Handle "answer:" mode - bot mentioned + message starts with "answer:"
+		if client != nil && strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
+			upperText := strings.ToUpper(text)
+			if strings.HasPrefix(upperText, "ANSWER:") || strings.Contains(upperText, " ANSWER:") {
+				// Extract the question after "answer:"
+				answerIdx := strings.Index(upperText, "ANSWER:")
+				if answerIdx != -1 {
+					question := strings.TrimSpace(text[answerIdx+7:]) // Skip "answer:"
+					// Remove bot mention from question
+					question = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(question, "")
+					question = strings.TrimSpace(question)
+
+					if question != "" {
+						log.Printf("Answer mode GPT request: %s", question)
+						systemPrompt := os.Getenv("GPT_SYSTEM_PROMPT")
+						if systemPrompt == "" {
+							systemPrompt = "You are a helpful assistant. Provide clear and concise answers."
+						}
+
+						txt, err := getGPTAnswerWithSystem(question, systemPrompt)
+						if err != nil {
+							log.Printf("Answer mode GPT error: %v", err)
+							txt = "Sorry, I couldn't process your question."
+						}
+
+						msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
+						msg.ReplyToMessageID = messg.MessageID
+						_, err = bot.Send(msg)
+						if err != nil {
+							log.Printf("Send: %v ", err)
+						}
+						continue
+					}
+				}
+			}
+		}
+
 		if client != nil {
 			if filter != nil &&
 				filter(strings.ToUpper(text)) { // || messg.ReplyToMessage != nil &&

@@ -7,6 +7,7 @@ A Telegram bot for managing group discussions and media suggestions.
 ### General
 - Text-to-speech using ElevenLabs (mention the bot to have text read aloud)
 - GPT-3 integration for smart responses
+- **Answer mode**: Send `answer: your question` with bot mention to get GPT responses with custom system prompt
 - Scheduled class management
 
 ### Media Management
@@ -41,6 +42,9 @@ The bot helps manage a weekly discussion group by:
 - `BOT_TOKEN` - Telegram bot token
 - `GPT_TOKEN` - OpenAI API key (optional)
 - `GPT_KEYWORDS` - Keywords to trigger GPT (optional)
+- `GPT_SYSTEM_PROMPT` - Custom system prompt for "answer:" mode (optional, defaults to helpful assistant)
+- `GPT_MODEL` - OpenAI model to use (e.g., gpt-4, gpt-3.5-turbo)
+- `GPT_SYSTEM_MSG` - System message for regular keyword-triggered GPT responses
 - `OWNER_ID` - Telegram user ID of the bot owner
 - `CLASS_GROUP_ID` - ID of the Telegram group for class discussions
 - `ELEVENLABS_API_KEY` - Your ElevenLabs API key
