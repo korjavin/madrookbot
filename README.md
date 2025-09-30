@@ -5,8 +5,7 @@ A Telegram bot for managing group discussions and media suggestions.
 ## Features
 
 ### General
-- Text-to-speech using AWS Polly (mention the bot to have text read aloud)
-- Voice selection with `/setvoice` command
+- Text-to-speech using ElevenLabs (mention the bot to have text read aloud)
 - GPT-3 integration for smart responses
 - Scheduled class management
 
@@ -31,7 +30,6 @@ The bot helps manage a weekly discussion group by:
 ## Commands
 
 - `/help` - Shows help message
-- `/setvoice` - Set your preferred voice for text-to-speech
 - `/media` or `/list` - Shows the current list of media suggestions
 - `/del [number]` - Delete a suggestion (owner can delete any, users can delete their own)
 - `/idiom [term]` - Shows the definition of an idiom
@@ -45,9 +43,9 @@ The bot helps manage a weekly discussion group by:
 - `GPT_KEYWORDS` - Keywords to trigger GPT (optional)
 - `OWNER_ID` - Telegram user ID of the bot owner
 - `CLASS_GROUP_ID` - ID of the Telegram group for class discussions
-- `AWS_ACCESS_KEY_ID` - AWS access key ID for Polly
-- `AWS_SECRET_ACCESS_KEY` - AWS secret access key for Polly
-- `AWS_REGION` - AWS region for Polly (e.g., `us-west-2`)
+- `ELEVENLABS_API_KEY` - Your ElevenLabs API key
+- `ELEVENLABS_VOICE_NAME` - The name of the ElevenLabs voice to use
+- `ELEVENLABS_MODEL_ID` - The ID of the ElevenLabs model to use
 
 ## Running
 
@@ -58,9 +56,9 @@ docker run \
   -e BOT_TOKEN=your_token \
   -e OWNER_ID=your_id \
   -e CLASS_GROUP_ID=group_id \
-  -e AWS_ACCESS_KEY_ID=your_aws_key \
-  -e AWS_SECRET_ACCESS_KEY=your_aws_secret \
-  -e AWS_REGION=your_aws_region \
+  -e ELEVENLABS_API_KEY=your_elevenlabs_key \
+  -e ELEVENLABS_VOICE_NAME=your_elevenlabs_voice_name \
+  -e ELEVENLABS_MODEL_ID=your_elevenlabs_model_id \
   madrookbot
 ```
 

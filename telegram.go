@@ -17,11 +17,7 @@ type class struct {
 	MessageID int
 }
 
-const defaultVoice = "Raveena"
-
 var currentClass class
-
-var removeVoice = regexp.MustCompile(`\[(\w+)\]`)
 
 func botGo(filter filterFunc) {
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
@@ -112,46 +108,6 @@ func botGo(filter filterFunc) {
 		}
 
 		switch fsm.state.Current() {
-		case "waitvoice":
-			answer := ""
-			if !voices[text] {
-				answer = "Sorry,I don't have this voice: '" + text + "', command canceled"
-				_ = fsm.state.Event("cancel")
-				msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-				msg.ReplyToMessageID = messg.MessageID
-
-				msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
-
-				_, err := bot.Send(msg)
-				if err != nil {
-					log.Printf("Send: %v ", err)
-				}
-			} else {
-				answer = "Okay, Dear " + messg.From.FirstName + ", I will use the voice " + text + " for your messages! \n Wheneve you want me to make speech just mention me in your message"
-
-				res := makeSpeech(answer, text)
-				if res != nil {
-					file := tgbotapi.FileReader{
-						Name:   "filename",
-						Reader: res,
-						Size:   -1,
-					}
-					msg := tgbotapi.NewVoiceUpload(messg.Chat.ID, file)
-					msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{RemoveKeyboard: true, Selective: true}
-					msg.ReplyToMessageID = messg.MessageID
-					_, err = bot.Send(msg)
-
-					if err != nil {
-						log.Printf("Send: %v ", err)
-					}
-				}
-
-				SetVoice(messg.From.ID, text)
-				prefs[messg.From.ID] = text
-
-				_ = fsm.state.Event("cancel")
-			}
-			continue
 		case "waitidiom":
 			split := strings.Split(text, " ")
 			answer := getIdiom(strings.Join(split, "+"))
@@ -209,34 +165,6 @@ func botGo(filter filterFunc) {
 			continue
 		}
 
-		if strings.HasPrefix(strings.ToUpper(text), "/SETVOICE") {
-			_ = fsm.state.Event("waitvoice")
-
-			var buttons []tgbotapi.KeyboardButton
-
-			for k := range voices {
-				buttons = append(buttons, tgbotapi.KeyboardButton{Text: k})
-			}
-			answer := "Please choose a voice from the list and send to me."
-			markup := tgbotapi.ReplyKeyboardMarkup{
-				Keyboard: [][]tgbotapi.KeyboardButton{
-					buttons,
-				},
-				OneTimeKeyboard: true,
-				ResizeKeyboard:  true,
-				Selective:       true,
-			}
-
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-			msg.ReplyToMessageID = messg.MessageID
-			msg.ReplyMarkup = markup
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			continue
-		}
-
 		if messg.From.ID == bot.Self.ID ||
 			update.EditedMessage != nil {
 			continue
@@ -283,15 +211,9 @@ func botGo(filter filterFunc) {
 		log.Printf("[%s] %s \n", messg.From.UserName, text)
 
 		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
-		text = removeVoice.ReplaceAllLiteralString(text, "")
-
-		voice := defaultVoice
-		if v, ok := prefs[messg.From.ID]; ok {
-			voice = v
-		}
 
 		// sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
-		res := makeSpeech(text, voice)
+		res := makeSpeech(text)
 		if res != nil {
 			file := tgbotapi.FileReader{
 				Name:   "filename",
