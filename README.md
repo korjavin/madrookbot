@@ -8,6 +8,10 @@ A Telegram bot for managing group discussions and media suggestions.
 - Text-to-speech using ElevenLabs (mention the bot to have text read aloud)
 - GPT-3 integration for smart responses
 - **Answer mode**: Send `answer: your question` with bot mention to get GPT responses with custom system prompt
+- **Conversation threading**: Reply to bot's answers to continue the conversation with context (maintains up to 5 exchanges in memory)
+  - Multiple users can branch conversations from the same bot message
+  - Each branch maintains its own conversation history
+  - Conversations use the same system prompt from the initial "answer:" query
 - Scheduled class management
 
 ### Media Management

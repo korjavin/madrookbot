@@ -170,6 +170,67 @@ func botGo(filter filterFunc) {
 			continue
 		}
 
+		// Handle replies to bot messages (conversation threading)
+		if client != nil && messg.ReplyToMessage != nil && messg.ReplyToMessage.From.ID == bot.Self.ID {
+			// User is replying to a bot message - check if it's part of a conversation
+			parentMessageID := messg.ReplyToMessage.MessageID
+
+			if _, exists := conversationCache.GetMessage(parentMessageID); exists {
+				// This is a conversation continuation
+				log.Printf("[INFO] Conversation continuation detected: user %d replying to message %d",
+					messg.From.ID, parentMessageID)
+
+				// Get system prompt from conversation root
+				systemPrompt := conversationCache.GetSystemPrompt(parentMessageID)
+				if systemPrompt == "" {
+					systemPrompt = "You are a helpful assistant. Provide clear and concise answers."
+				}
+
+				// Build conversation history (last 5 exchanges)
+				history := conversationCache.BuildConversationHistory(parentMessageID, 5)
+
+				// Get GPT answer with conversation context
+				txt, err := getGPTAnswerWithHistory(text, systemPrompt, history)
+				if err != nil {
+					log.Printf("Conversation GPT error: %v", err)
+					txt = "Sorry, I couldn't process your message."
+				}
+
+				// Send response
+				msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
+				msg.ReplyToMessageID = messg.MessageID
+				sentMsg, err := bot.Send(msg)
+				if err != nil {
+					log.Printf("Send: %v ", err)
+				} else {
+					// Store user message in conversation tree
+					conversationCache.AddMessage(&ConversationNode{
+						MessageID:    messg.MessageID,
+						ParentID:     parentMessageID,
+						ChatID:       messg.Chat.ID,
+						UserID:       messg.From.ID,
+						Text:         text,
+						Role:         "user",
+						SystemPrompt: systemPrompt,
+						Timestamp:    time.Now(),
+					})
+
+					// Store bot response in conversation tree
+					conversationCache.AddMessage(&ConversationNode{
+						MessageID:    sentMsg.MessageID,
+						ParentID:     messg.MessageID,
+						ChatID:       messg.Chat.ID,
+						UserID:       bot.Self.ID,
+						Text:         txt,
+						Role:         "assistant",
+						SystemPrompt: systemPrompt,
+						Timestamp:    time.Now(),
+					})
+				}
+				continue
+			}
+		}
+
 		// Handle "answer:" mode - bot mentioned + message starts with "answer:"
 		if client != nil && strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
 			upperText := strings.ToUpper(text)
@@ -197,9 +258,32 @@ func botGo(filter filterFunc) {
 
 						msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
 						msg.ReplyToMessageID = messg.MessageID
-						_, err = bot.Send(msg)
+						sentMsg, err := bot.Send(msg)
 						if err != nil {
 							log.Printf("Send: %v ", err)
+						} else {
+							// Store initial question and answer in conversation tree
+							conversationCache.AddMessage(&ConversationNode{
+								MessageID:    messg.MessageID,
+								ParentID:     0, // Root message
+								ChatID:       messg.Chat.ID,
+								UserID:       messg.From.ID,
+								Text:         question,
+								Role:         "user",
+								SystemPrompt: systemPrompt,
+								Timestamp:    time.Now(),
+							})
+
+							conversationCache.AddMessage(&ConversationNode{
+								MessageID:    sentMsg.MessageID,
+								ParentID:     messg.MessageID,
+								ChatID:       messg.Chat.ID,
+								UserID:       bot.Self.ID,
+								Text:         txt,
+								Role:         "assistant",
+								SystemPrompt: systemPrompt,
+								Timestamp:    time.Now(),
+							})
 						}
 						continue
 					}

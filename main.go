@@ -16,6 +16,8 @@ func main() {
 		log.Printf("Error initializing media suggestions: %v", err)
 	}
 
+	// Initialize conversation cache
+	initConversationCache()
 
 	var ff filterFunc
 	if os.Getenv("GPT_TOKEN") != "" {
