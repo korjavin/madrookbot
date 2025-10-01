@@ -60,6 +60,14 @@ func botGo() {
 		text = messg.Text
 
 		if messg.Chat.IsGroup() || messg.Chat.IsSuperGroup() {
+			// Track user activity for all groups
+			if messg.From != nil && messg.From.UserName != "" {
+				err := trackUserActivity(messg.Chat.ID, messg.From.UserName)
+				if err != nil {
+					log.Printf("[ERROR] Failed to track activity: %v", err)
+				}
+			}
+
 			// Get class group ID
 			classGroupID, err := getClassGroupID()
 			if err == nil && int64(messg.Chat.ID) == classGroupID {
@@ -90,6 +98,7 @@ func botGo() {
 /idiom <term> - Show the definition from idioms.thefreedictionary.com
 /media or /list - Show current list of media suggestions
 /del <number> - Delete a media suggestion
+/stat - Show group activity statistics (admins only, 1/hour)
 
 Mention me @` + name + ` to ask questions (reply to continue conversation)
 Use "read: <text>" to convert text to speech.`
@@ -100,6 +109,12 @@ Use "read: <text>" to convert text to speech.`
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
+			continue
+		}
+
+		// Handle /stat command
+		if strings.HasPrefix(strings.ToUpper(text), "/STAT") {
+			handleStatCommand(bot, messg)
 			continue
 		}
 		if strings.HasPrefix(strings.ToUpper(text), "/IDIOM") {

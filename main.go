@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 )
 
@@ -20,6 +19,12 @@ func main() {
 
 	// Initialize conversation cache
 	initConversationCache()
+
+	// Initialize activity tracking database
+	err = initActivityDatabase()
+	if err != nil {
+		log.Printf("Error initializing activity database: %v", err)
+	}
 
 	if os.Getenv("GPT_TOKEN") != "" {
 		log.Printf("GPT_TOKEN is set, using GPT-3")
@@ -41,6 +46,7 @@ func main() {
 
 	// Start scheduled tasks
 	go scheduleMediaTasks()
+	go scheduleActivityCleanup()
 
 	botGo()
 }
