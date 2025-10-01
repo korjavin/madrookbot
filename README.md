@@ -5,13 +5,16 @@ A Telegram bot for managing group discussions and media suggestions.
 ## Features
 
 ### General
-- Text-to-speech using ElevenLabs (mention the bot to have text read aloud)
-- GPT-3 integration for smart responses
-- **Answer mode**: Send `answer: your question` with bot mention to get GPT responses with custom system prompt
-- **Conversation threading**: Reply to bot's answers to continue the conversation with context (maintains up to 5 exchanges in memory)
-  - Multiple users can branch conversations from the same bot message
-  - Each branch maintains its own conversation history
-  - Conversations use the same system prompt from the initial "answer:" query
+- **GPT Integration**: Mention the bot to get AI-powered text responses with conversation threading
+  - Reply to bot's answers to continue conversations with context (5 exchanges history)
+  - Multiple users can branch conversations from the same message
+  - Database-backed conversation persistence with 7-day retention
+- **Text-to-Speech**: Use `read: <text>` to generate audio via ElevenLabs
+- **Activity Statistics**: `/stat` command shows group activity charts (admins only)
+  - Tracks message activity in hourly buckets
+  - Generates visual charts with top 10 contributors
+  - GPT-powered analysis of activity patterns
+  - 6-month data retention
 - Scheduled class management
 
 ### Media Management
@@ -38,19 +41,25 @@ The bot helps manage a weekly discussion group by:
 - `/media` or `/list` - Shows the current list of media suggestions
 - `/del [number]` - Delete a suggestion (owner can delete any, users can delete their own)
 - `/idiom <term>` - Shows the definition of an idiom from idioms.thefreedictionary.com
-- Mention the bot to have text read aloud using text-to-speech
-- `answer: <question>` (with bot mention) - Ask GPT with custom system prompt, then reply to continue the conversation
+- `/stat` - Show group activity statistics (admins only, 1/hour rate limit)
+- Mention the bot (`@bot_name <question>`) - Ask GPT, reply to continue conversation
+- `read: <text>` - Convert text to speech using ElevenLabs
 
 ## Environment Variables
 
+### Required
 - `BOT_TOKEN` - Telegram bot token
-- `GPT_TOKEN` - OpenAI API key (optional)
-- `GPT_KEYWORDS` - Keywords to trigger GPT (optional)
-- `GPT_SYSTEM_PROMPT` - Custom system prompt for "answer:" mode (optional, defaults to helpful assistant)
-- `GPT_MODEL` - OpenAI model to use (e.g., gpt-4, gpt-3.5-turbo)
-- `GPT_SYSTEM_MSG` - System message for regular keyword-triggered GPT responses
 - `OWNER_ID` - Telegram user ID of the bot owner
 - `CLASS_GROUP_ID` - ID of the Telegram group for class discussions
+
+### OpenAI/GPT (optional)
+- `GPT_TOKEN` - OpenAI API key
+- `GPT_MODEL` - OpenAI model to use (e.g., gpt-4, gpt-3.5-turbo)
+- `GPT_SYSTEM_PROMPT` - Custom system prompt for conversations (defaults to helpful assistant)
+- `OPENAI_TEMPERATURE` - Temperature for GPT responses (default: 1.0)
+- `OPENAI_URL` - OpenAI API base URL (default: https://api.openai.com/v1)
+
+### ElevenLabs TTS (optional)
 - `ELEVENLABS_API_KEY` - Your ElevenLabs API key
 - `ELEVENLABS_VOICE_NAME` - The name of the ElevenLabs voice to use
 - `ELEVENLABS_MODEL_ID` - The ID of the ElevenLabs model to use
