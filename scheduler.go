@@ -22,53 +22,80 @@ const (
 
 // scheduleMediaTasks runs the scheduled tasks for media management
 func scheduleMediaTasks() {
+	// Wait for initial suggestions before starting scheduler
+	log.Println("[INFO] Scheduler: Waiting for media suggestions before starting...")
+	for {
+		suggestions, err := GetMediaSuggestions()
+		if err == nil && len(suggestions) > 0 {
+			log.Printf("[INFO] Scheduler: Found %d suggestions, starting scheduler", len(suggestions))
+			break
+		}
+		// Check every hour if there are suggestions
+		time.Sleep(1 * time.Hour)
+	}
+
 	loc, err := time.LoadLocation(berlinTimezone)
 	if err != nil {
-		log.Printf("Error loading timezone: %v", err)
+		log.Printf("[ERROR] Error loading timezone: %v", err)
 		loc = time.UTC
 	}
 
 	// Get the Telegram bot
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
-		log.Printf("Error initializing bot for scheduler: %v", err)
+		log.Printf("[ERROR] Error initializing bot for scheduler: %v", err)
 		return
 	}
 
 	// Get group ID
 	groupID, err := getClassGroupID()
 	if err != nil {
-		log.Printf("Scheduler error: %v", err)
+		log.Printf("[ERROR] Scheduler error: %v", err)
 		return
 	}
+
+	// Track what we've already sent today to avoid duplicates
+	var lastMondayRun, lastWednesdayRun, lastSundayRun time.Time
 
 	for {
 		now := time.Now().In(loc)
 
-		// Calculate time until next check (15 minute intervals)
-		nextCheck := now.Add(time.Minute)
+		// Sleep for 5 minutes between checks (more reliable than 1 minute)
+		time.Sleep(5 * time.Minute)
 
-		// Sleep until next check
-		time.Sleep(time.Until(nextCheck))
-
-		// Current time after sleep
+		// Get current time after sleep
 		now = time.Now().In(loc)
 		weekday := now.Weekday()
-		timeStr := fmt.Sprintf("%02d:%02d", now.Hour(), now.Minute())
+		currentHour := now.Hour()
+		currentMinute := now.Minute()
 
-		// Check for scheduled events
-		switch {
-		case weekday == time.Monday && timeStr == MondayTime:
-			// Monday reminder
-			go sendMondayReminder(bot, groupID)
+		// Check for scheduled events with time windows (not exact match)
+		// Monday: 15:00-15:10 window
+		if weekday == time.Monday && currentHour == 15 && currentMinute < 10 {
+			// Check if we already ran today
+			if lastMondayRun.YearDay() != now.YearDay() || lastMondayRun.Year() != now.Year() {
+				log.Println("[INFO] Triggering Monday reminder")
+				go sendMondayReminder(bot, groupID)
+				lastMondayRun = now
+			}
+		}
 
-		case weekday == time.Wednesday && timeStr == WednesdayTime:
-			// Wednesday list presentation
-			go sendWednesdayList(bot, groupID)
+		// Wednesday: 12:00-12:10 window
+		if weekday == time.Wednesday && currentHour == 12 && currentMinute < 10 {
+			if lastWednesdayRun.YearDay() != now.YearDay() || lastWednesdayRun.Year() != now.Year() {
+				log.Println("[INFO] Triggering Wednesday list presentation")
+				go sendWednesdayList(bot, groupID)
+				lastWednesdayRun = now
+			}
+		}
 
-		case weekday == time.Sunday && timeStr == SundayTime:
-			// Sunday reminder
-			go sendSundayReminder(bot, groupID)
+		// Sunday: 17:00-17:10 window
+		if weekday == time.Sunday && currentHour == 17 && currentMinute < 10 {
+			if lastSundayRun.YearDay() != now.YearDay() || lastSundayRun.Year() != now.Year() {
+				log.Println("[INFO] Triggering Sunday reminder")
+				go sendSundayReminder(bot, groupID)
+				lastSundayRun = now
+			}
 		}
 	}
 }
