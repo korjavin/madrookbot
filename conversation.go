@@ -303,6 +303,12 @@ func loadConversationsFromDatabase() error {
 	defer rows.Close()
 
 	count := 0
+	totalBytes := 0
+	uniqueChats := make(map[int64]bool)
+	uniqueUsers := make(map[int]bool)
+	oldestTime := time.Now()
+	newestTime := time.Time{}
+
 	for rows.Next() {
 		var node ConversationNode
 		err = rows.Scan(
@@ -323,6 +329,17 @@ func loadConversationsFromDatabase() error {
 		// Calculate size
 		node.ApproxSize = len(node.Text) + len(node.SystemPrompt) + 100
 
+		// Track stats
+		totalBytes += node.ApproxSize
+		uniqueChats[node.ChatID] = true
+		uniqueUsers[node.UserID] = true
+		if node.Timestamp.Before(oldestTime) {
+			oldestTime = node.Timestamp
+		}
+		if node.Timestamp.After(newestTime) {
+			newestTime = node.Timestamp
+		}
+
 		// Add to cache (without locking since we're in init)
 		conversationCache.mu.Lock()
 		conversationCache.nodes[node.MessageID] = &node
@@ -333,7 +350,13 @@ func loadConversationsFromDatabase() error {
 	}
 
 	if count > 0 {
+		cacheUsagePercent := float64(totalBytes) / float64(conversationCache.maxCacheBytes) * 100
 		log.Printf("[INFO] Loaded %d conversation messages from database", count)
+		log.Printf("[INFO] - Cache usage: %d bytes (%.1f%% of 20MB limit)", totalBytes, cacheUsagePercent)
+		log.Printf("[INFO] - Unique chats: %d, unique users: %d", len(uniqueChats), len(uniqueUsers))
+		log.Printf("[INFO] - Time range: %s to %s",
+			oldestTime.Format("2006-01-02 15:04"),
+			newestTime.Format("2006-01-02 15:04"))
 	}
 
 	return rows.Err()

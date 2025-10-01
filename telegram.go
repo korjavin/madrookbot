@@ -86,15 +86,13 @@ func botGo(filter filterFunc) {
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
-			answer := `You can send me any text to read aloud by mentioning me @` + name + `
-
-Commands:
+			answer := `Commands:
 /idiom <term> - Show the definition from idioms.thefreedictionary.com
 /media or /list - Show current list of media suggestions
 /del <number> - Delete a media suggestion
-answer: <question> - Ask GPT with custom system prompt (reply to continue conversation)
 
-Mention me to have text read aloud using text-to-speech.`
+Mention me @` + name + ` to ask questions (reply to continue conversation)
+Use "read: <text>" to convert text to speech.`
 
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -191,62 +189,58 @@ Mention me to have text read aloud using text-to-speech.`
 			}
 		}
 
-		// Handle "answer:" mode - bot mentioned + message starts with "answer:"
+		// Handle GPT questions when bot is mentioned (but not "read:" prefix)
 		if client != nil && strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
 			upperText := strings.ToUpper(text)
-			if strings.HasPrefix(upperText, "ANSWER:") || strings.Contains(upperText, " ANSWER:") {
-				// Extract the question after "answer:"
-				answerIdx := strings.Index(upperText, "ANSWER:")
-				if answerIdx != -1 {
-					question := strings.TrimSpace(text[answerIdx+7:]) // Skip "answer:"
-					// Remove bot mention from question
-					question = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(question, "")
-					question = strings.TrimSpace(question)
+			// Skip if this is a "read:" request
+			if !strings.HasPrefix(upperText, "READ:") && !strings.Contains(upperText, " READ:") {
+				// Extract question and remove bot mention
+				question := regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
+				question = strings.TrimSpace(question)
 
-					if question != "" {
-						log.Printf("Answer mode GPT request: %s", question)
-						systemPrompt := os.Getenv("GPT_SYSTEM_PROMPT")
-						if systemPrompt == "" {
-							systemPrompt = "You are a helpful assistant. Provide clear and concise answers."
-						}
-
-						txt, err := getGPTAnswerWithSystem(question, systemPrompt)
-						if err != nil {
-							log.Printf("Answer mode GPT error: %v", err)
-							txt = "Sorry, I couldn't process your question."
-						}
-
-						msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
-						msg.ReplyToMessageID = messg.MessageID
-						sentMsg, err := bot.Send(msg)
-						if err != nil {
-							log.Printf("Send: %v ", err)
-						} else {
-							// Store initial question and answer in conversation tree
-							conversationCache.AddMessage(&ConversationNode{
-								MessageID:    messg.MessageID,
-								ParentID:     0, // Root message
-								ChatID:       messg.Chat.ID,
-								UserID:       messg.From.ID,
-								Text:         question,
-								Role:         "user",
-								SystemPrompt: systemPrompt,
-								Timestamp:    time.Now(),
-							})
-
-							conversationCache.AddMessage(&ConversationNode{
-								MessageID:    sentMsg.MessageID,
-								ParentID:     messg.MessageID,
-								ChatID:       messg.Chat.ID,
-								UserID:       bot.Self.ID,
-								Text:         txt,
-								Role:         "assistant",
-								SystemPrompt: systemPrompt,
-								Timestamp:    time.Now(),
-							})
-						}
-						continue
+				if question != "" {
+					log.Printf("GPT request: %s", question)
+					systemPrompt := os.Getenv("GPT_SYSTEM_PROMPT")
+					if systemPrompt == "" {
+						systemPrompt = "You are a helpful assistant. Provide clear and concise answers."
 					}
+
+					txt, err := getGPTAnswerWithSystem(question, systemPrompt)
+					if err != nil {
+						log.Printf("GPT error: %v", err)
+						txt = "Sorry, I couldn't process your question."
+					}
+
+					msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
+					msg.ReplyToMessageID = messg.MessageID
+					sentMsg, err := bot.Send(msg)
+					if err != nil {
+						log.Printf("Send: %v ", err)
+					} else {
+						// Store initial question and answer in conversation tree
+						conversationCache.AddMessage(&ConversationNode{
+							MessageID:    messg.MessageID,
+							ParentID:     0, // Root message
+							ChatID:       messg.Chat.ID,
+							UserID:       messg.From.ID,
+							Text:         question,
+							Role:         "user",
+							SystemPrompt: systemPrompt,
+							Timestamp:    time.Now(),
+						})
+
+						conversationCache.AddMessage(&ConversationNode{
+							MessageID:    sentMsg.MessageID,
+							ParentID:     messg.MessageID,
+							ChatID:       messg.Chat.ID,
+							UserID:       bot.Self.ID,
+							Text:         txt,
+							Role:         "assistant",
+							SystemPrompt: systemPrompt,
+							Timestamp:    time.Now(),
+						})
+					}
+					continue
 				}
 			}
 		}
@@ -286,28 +280,36 @@ Mention me to have text read aloud using text-to-speech.`
 			continue
 		}
 
-		if !strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
-			continue
-		}
+		// Handle "read:" prefix for text-to-speech
+		upperText := strings.ToUpper(text)
+		if strings.HasPrefix(upperText, "READ:") || strings.Contains(upperText, " READ:") {
+			// Extract text after "read:"
+			readIdx := strings.Index(upperText, "READ:")
+			if readIdx != -1 {
+				textToRead := strings.TrimSpace(text[readIdx+5:]) // Skip "read:"
+				// Remove bot mention if present
+				textToRead = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(textToRead, "")
+				textToRead = strings.TrimSpace(textToRead)
 
-		log.Printf("[%s] %s \n", messg.From.UserName, text)
+				if textToRead != "" {
+					log.Printf("[%s] TTS request: %s\n", messg.From.UserName, textToRead)
 
-		text = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
+					res := makeSpeech(textToRead)
+					if res != nil {
+						file := tgbotapi.FileReader{
+							Name:   "filename",
+							Reader: res,
+							Size:   -1,
+						}
+						msg := tgbotapi.NewVoiceUpload(messg.Chat.ID, file)
+						msg.ReplyToMessageID = messg.MessageID
+						_, err = bot.Send(msg)
 
-		// sendAudio(text, voice, messg.From.ID, messg.Chat.ID, messg.MessageID)
-		res := makeSpeech(text)
-		if res != nil {
-			file := tgbotapi.FileReader{
-				Name:   "filename",
-				Reader: res,
-				Size:   -1,
-			}
-			msg := tgbotapi.NewVoiceUpload(messg.Chat.ID, file)
-			msg.ReplyToMessageID = messg.MessageID
-			_, err = bot.Send(msg)
-
-			if err != nil {
-				log.Printf("Send: %v ", err)
+						if err != nil {
+							log.Printf("Send: %v ", err)
+						}
+					}
+				}
 			}
 		}
 	}
