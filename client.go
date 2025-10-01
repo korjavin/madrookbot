@@ -21,7 +21,6 @@ func getDoc(url string) (*html.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[DEBUG] res = %v \n", res)
 	defer func() {
 		err := res.Body.Close()
 		if err != nil {

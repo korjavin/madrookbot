@@ -12,7 +12,8 @@ var db *sql.DB
 // init func opens sqlite database
 func init() {
 	var err error
-	db, err = sql.Open("sqlite3", "./data.db")
+	dbPath := "./data/my.db" // Store in data directory for Docker volume mount
+	db, err = sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
