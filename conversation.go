@@ -36,6 +36,27 @@ func initConversationCache() {
 		currentBytes:  0,
 	}
 	log.Println("[INFO] Conversation cache initialized with 20MB limit")
+
+	// Initialize database table
+	err := initConversationDatabase()
+	if err != nil {
+		log.Printf("[ERROR] Failed to initialize conversation database: %v", err)
+	}
+
+	// Clean up old messages on startup
+	err = cleanupOldConversations()
+	if err != nil {
+		log.Printf("[ERROR] Failed to cleanup old conversations: %v", err)
+	}
+
+	// Load conversations from database
+	err = loadConversationsFromDatabase()
+	if err != nil {
+		log.Printf("[ERROR] Failed to load conversations from database: %v", err)
+	}
+
+	// Start periodic save every 5 minutes
+	go periodicSaveConversations()
 }
 
 // AddMessage adds a message to the conversation tree
@@ -161,4 +182,183 @@ func (cc *ConversationCache) GetSystemPrompt(messageID int) string {
 	}
 
 	return ""
+}
+
+// Database persistence functions
+
+const conversationRetentionDays = 7
+
+// initConversationDatabase creates the conversation_messages table
+func initConversationDatabase() error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS conversation_messages (
+		message_id INTEGER PRIMARY KEY,
+		parent_id INTEGER NOT NULL,
+		chat_id INTEGER NOT NULL,
+		user_id INTEGER NOT NULL,
+		text TEXT NOT NULL,
+		role TEXT NOT NULL,
+		system_prompt TEXT,
+		timestamp TIMESTAMP NOT NULL
+	)`)
+	if err != nil {
+		return err
+	}
+
+	// Create index on timestamp for faster cleanup
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_conversation_timestamp
+		ON conversation_messages(timestamp)`)
+
+	return err
+}
+
+// cleanupOldConversations removes messages older than retention period
+func cleanupOldConversations() error {
+	cutoffTime := time.Now().Add(-conversationRetentionDays * 24 * time.Hour)
+	result, err := db.Exec("DELETE FROM conversation_messages WHERE timestamp < ?", cutoffTime)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected > 0 {
+		log.Printf("[INFO] Cleaned up %d old conversation messages (older than %d days)",
+			rowsAffected, conversationRetentionDays)
+	}
+
+	return nil
+}
+
+// saveConversationsToDatabase saves current cache to database
+func saveConversationsToDatabase() error {
+	if conversationCache == nil {
+		return nil
+	}
+
+	conversationCache.mu.RLock()
+	defer conversationCache.mu.RUnlock()
+
+	// Begin transaction for better performance
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Clear existing data (we'll save the entire current state)
+	_, err = tx.Exec("DELETE FROM conversation_messages")
+	if err != nil {
+		return err
+	}
+
+	// Insert all current nodes
+	stmt, err := tx.Prepare(`INSERT INTO conversation_messages
+		(message_id, parent_id, chat_id, user_id, text, role, system_prompt, timestamp)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	count := 0
+	for _, node := range conversationCache.nodes {
+		_, err = stmt.Exec(
+			node.MessageID,
+			node.ParentID,
+			node.ChatID,
+			node.UserID,
+			node.Text,
+			node.Role,
+			node.SystemPrompt,
+			node.Timestamp,
+		)
+		if err != nil {
+			return err
+		}
+		count++
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[DEBUG] Saved %d conversation messages to database", count)
+
+	// Cleanup old messages after save
+	return cleanupOldConversations()
+}
+
+// loadConversationsFromDatabase loads conversations from database into cache
+func loadConversationsFromDatabase() error {
+	if conversationCache == nil {
+		return nil
+	}
+
+	rows, err := db.Query(`SELECT message_id, parent_id, chat_id, user_id, text, role,
+		system_prompt, timestamp FROM conversation_messages ORDER BY timestamp ASC`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		var node ConversationNode
+		err = rows.Scan(
+			&node.MessageID,
+			&node.ParentID,
+			&node.ChatID,
+			&node.UserID,
+			&node.Text,
+			&node.Role,
+			&node.SystemPrompt,
+			&node.Timestamp,
+		)
+		if err != nil {
+			log.Printf("[ERROR] Failed to scan conversation row: %v", err)
+			continue
+		}
+
+		// Calculate size
+		node.ApproxSize = len(node.Text) + len(node.SystemPrompt) + 100
+
+		// Add to cache (without locking since we're in init)
+		conversationCache.mu.Lock()
+		conversationCache.nodes[node.MessageID] = &node
+		conversationCache.currentBytes += node.ApproxSize
+		conversationCache.mu.Unlock()
+
+		count++
+	}
+
+	if count > 0 {
+		log.Printf("[INFO] Loaded %d conversation messages from database", count)
+	}
+
+	return rows.Err()
+}
+
+// periodicSaveConversations saves cache to database every 5 minutes
+func periodicSaveConversations() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		err := saveConversationsToDatabase()
+		if err != nil {
+			log.Printf("[ERROR] Failed to save conversations to database: %v", err)
+		}
+	}
+}
+
+// SaveConversationsOnShutdown should be called before the bot exits
+func SaveConversationsOnShutdown() {
+	log.Println("[INFO] Saving conversations to database before shutdown...")
+	err := saveConversationsToDatabase()
+	if err != nil {
+		log.Printf("[ERROR] Failed to save conversations on shutdown: %v", err)
+	} else {
+		log.Println("[INFO] Conversations saved successfully")
+	}
 }

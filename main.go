@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 func main() {
@@ -26,6 +28,19 @@ func main() {
 		keywords := strings.Split(os.Getenv("GPT_KEYWORDS"), ",")
 		ff = generatorOfContainFuncs(keywords)
 	}
+
+	// Set up graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		log.Println("[INFO] Shutdown signal received")
+		SaveConversationsOnShutdown()
+		if db != nil {
+			db.Close()
+		}
+		os.Exit(0)
+	}()
 
 	// Start scheduled tasks
 	go scheduleMediaTasks()
