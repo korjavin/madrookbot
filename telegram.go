@@ -38,8 +38,6 @@ func botGo(filter filterFunc) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	fsms := make(map[int]*dialogue)
-
 	updates, err := bot.GetUpdatesChan(u)
 	if err != nil {
 		log.Printf("[ERROR] getting update channel %v\n", err)
@@ -50,7 +48,6 @@ func botGo(filter filterFunc) {
 			continue
 		}
 		var text string
-		var from int
 		var messg *tgbotapi.Message
 
 		if update.Message != nil {
@@ -61,7 +58,6 @@ func botGo(filter filterFunc) {
 		}
 
 		text = messg.Text
-		from = messg.From.ID
 
 		if messg.Chat.IsGroup() || messg.Chat.IsSuperGroup() {
 			// Get class group ID
@@ -89,51 +85,16 @@ func botGo(filter filterFunc) {
 			}
 		}
 
-		if _, ok := fsms[from]; !ok {
-			fsms[from] = newDialogue(from)
-		}
-		fsm := fsms[from]
-
-		if strings.HasPrefix(strings.ToUpper(text), "/CANCEL") {
-			_ = fsm.state.Event("cancel")
-
-			msg := tgbotapi.NewMessage(messg.Chat.ID, "Command canceled.")
-			msg.ReplyToMessageID = messg.MessageID
-
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			continue
-		}
-
-		switch fsm.state.Current() {
-		case "waitidiom":
-			split := strings.Split(text, " ")
-			answer := getIdiom(strings.Join(split, "+"))
-			if answer == "" {
-				answer = "Sorry, nothing about " + text
-			}
-			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
-			msg.ReplyToMessageID = messg.MessageID
-			_, err := bot.Send(msg)
-			if err != nil {
-				log.Printf("Send: %v ", err)
-			}
-			_ = fsm.state.Event("cancel")
-			continue
-
-		case "idle":
-			log.Printf("[INFO] idle state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
-
-		default:
-			log.Printf("[INFO] uncovered state for %s is  %s  \n", messg.From.UserName, fsm.state.Current())
-		}
-
 		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
-			answer := `You can send me any text to read aloud, but please mention me by @` + name +
-				` /oxford term :  show the definition from Oxford dictionary
-			   /idiom term  :  show the definition from idioms.thefreedictionary.com`
+			answer := `You can send me any text to read aloud by mentioning me @` + name + `
+
+Commands:
+/idiom <term> - Show the definition from idioms.thefreedictionary.com
+/media or /list - Show current list of media suggestions
+/del <number> - Delete a media suggestion
+answer: <question> - Ask GPT with custom system prompt (reply to continue conversation)
+
+Mention me to have text read aloud using text-to-speech.`
 
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -147,12 +108,11 @@ func botGo(filter filterFunc) {
 			split := strings.Split(text, " ")
 			answer := ""
 			if len(split) < 2 {
-				answer = " Please send me any text to search in idioms.thefreedictionary.com"
-				_ = fsm.state.Event("waitidiom")
+				answer = "Please provide a term to search. Usage: /idiom <term>"
 			} else {
 				answer = getIdiom(strings.Join(split[1:], "+"))
 				if answer == "" {
-					answer = "Sorry, nothing about " + strings.Join(split[1:], " ")
+					answer = "Sorry, nothing found about " + strings.Join(split[1:], " ")
 				}
 			}
 

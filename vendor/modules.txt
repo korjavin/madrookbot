@@ -7,9 +7,6 @@ github.com/andybalholm/cascadia
 # github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e
 ## explicit
 github.com/go-telegram-bot-api/telegram-bot-api
-# github.com/looplab/fsm v0.0.0-20170404094036-bcc3636384ce
-## explicit
-github.com/looplab/fsm
 # github.com/mattn/go-sqlite3 v1.14.17
 ## explicit; go 1.16
 github.com/mattn/go-sqlite3

@@ -4,8 +4,6 @@ github.com/andybalholm/cascadia v0.0.0-20161224141413-349dd0209470 h1:4jHLmof+Hb
 github.com/andybalholm/cascadia v0.0.0-20161224141413-349dd0209470/go.mod h1:3I+3V7B6gTBYfdpYgIG2ymALS9H+5VDKUl3lHH7ToM4=
 github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e h1:jl99YpaBkmP720aKCFhS5z3I78LVv/+/ij4jZoJ0WuY=
 github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e/go.mod h1:qf9acutJ8cwBUhm1bqgz6Bei9/C/c93FPDljKWwsOgM=
-github.com/looplab/fsm v0.0.0-20170404094036-bcc3636384ce h1:/kHlhGMhXnoVgYIRC63Vkdh1CI43Yq5ry8slZMknCRI=
-github.com/looplab/fsm v0.0.0-20170404094036-bcc3636384ce/go.mod h1:m2VaOfDHxqXBBMgc26m6yUOwkFn8H2AlJDE+jd/uafI=
 github.com/mattn/go-sqlite3 v1.14.17 h1:mCRHCLDUBXgpKAqIKsaAaAsrAlbkeomtRFKXh2L6YIM=
 github.com/mattn/go-sqlite3 v1.14.17/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
 github.com/sashabaranov/go-openai v1.14.2 h1:5DPTtR9JBjKPJS008/A409I5ntFhUPPGCmaAihcPRyo=

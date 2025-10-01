@@ -37,9 +37,9 @@ The bot helps manage a weekly discussion group by:
 - `/help` - Shows help message
 - `/media` or `/list` - Shows the current list of media suggestions
 - `/del [number]` - Delete a suggestion (owner can delete any, users can delete their own)
-- `/idiom [term]` - Shows the definition of an idiom
-- `/create [date] [time] [topic]` - Create a new class (owner only). **Note: This command is not yet implemented.**
-- `/cancel` - Cancel current command
+- `/idiom <term>` - Shows the definition of an idiom from idioms.thefreedictionary.com
+- Mention the bot to have text read aloud using text-to-speech
+- `answer: <question>` (with bot mention) - Ask GPT with custom system prompt, then reply to continue the conversation
 
 ## Environment Variables
 
