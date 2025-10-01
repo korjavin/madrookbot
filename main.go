@@ -27,7 +27,11 @@ func main() {
 	}
 
 	if os.Getenv("GPT_TOKEN") != "" {
-		log.Printf("GPT_TOKEN is set, using GPT-3")
+		model := os.Getenv("GPT_MODEL")
+		if model == "" {
+			model = "not specified"
+		}
+		log.Printf("GPT_TOKEN is set, using model: %s", model)
 		initGPT()
 	}
 
