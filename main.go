@@ -21,12 +21,9 @@ func main() {
 	// Initialize conversation cache
 	initConversationCache()
 
-	var ff filterFunc
 	if os.Getenv("GPT_TOKEN") != "" {
 		log.Printf("GPT_TOKEN is set, using GPT-3")
 		initGPT()
-		keywords := strings.Split(os.Getenv("GPT_KEYWORDS"), ",")
-		ff = generatorOfContainFuncs(keywords)
 	}
 
 	// Set up graceful shutdown
@@ -45,7 +42,7 @@ func main() {
 	// Start scheduled tasks
 	go scheduleMediaTasks()
 
-	botGo(ff)
+	botGo()
 }
 
 // getClassGroupID returns the Telegram group ID where the class is held

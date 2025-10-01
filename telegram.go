@@ -19,7 +19,7 @@ type class struct {
 
 var currentClass class
 
-func botGo(filter filterFunc) {
+func botGo() {
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		log.Panic(err)
@@ -245,24 +245,6 @@ Use "read: <text>" to convert text to speech.`
 			}
 		}
 
-		if client != nil {
-			if filter != nil &&
-				filter(strings.ToUpper(text)) { // || messg.ReplyToMessage != nil &&
-				// messg.ReplyToMessage.From.ID == bot.Self.ID) {
-				log.Printf("GPT request: %b %s", filter(strings.ToUpper(text)), text)
-				txt, err := getGPTAnswer(text)
-				if err != nil {
-					log.Printf("chat: %v ", err)
-				}
-				msg := tgbotapi.NewMessage(messg.Chat.ID, txt)
-				msg.ReplyToMessageID = messg.MessageID
-				_, err = bot.Send(msg)
-				if err != nil {
-					log.Printf("Send: %v ", err)
-				}
-				continue
-			}
-		}
 		// Handle media commands
 		if strings.HasPrefix(strings.ToUpper(text), "/MEDIA") || strings.HasPrefix(strings.ToUpper(text), "/LIST") {
 			showCurrentMedia(bot, messg)
@@ -312,24 +294,5 @@ Use "read: <text>" to convert text to speech.`
 				}
 			}
 		}
-	}
-}
-
-type filterFunc func(string) bool
-
-func generatorOfContainFuncs(keywords []string) filterFunc {
-	if len(keywords) == 1 {
-		return func(msg string) bool {
-			return false
-		}
-	}
-	return func(msg string) bool {
-		for _, keyword := range keywords {
-			if strings.Contains(strings.ToUpper(msg), strings.ToUpper(keyword)) {
-				log.Printf("keyword: %s <- %s", keyword, msg)
-				return true
-			}
-		}
-		return false
 	}
 }
