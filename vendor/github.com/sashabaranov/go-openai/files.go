@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 )
@@ -15,20 +14,77 @@ type FileRequest struct {
 	Purpose  string `json:"purpose"`
 }
 
+// PurposeType represents the purpose of the file when uploading.
+type PurposeType string
+
+const (
+	PurposeFineTune         PurposeType = "fine-tune"
+	PurposeFineTuneResults  PurposeType = "fine-tune-results"
+	PurposeAssistants       PurposeType = "assistants"
+	PurposeAssistantsOutput PurposeType = "assistants_output"
+	PurposeBatch            PurposeType = "batch"
+)
+
+// FileBytesRequest represents a file upload request.
+type FileBytesRequest struct {
+	// the name of the uploaded file in OpenAI
+	Name string
+	// the bytes of the file
+	Bytes []byte
+	// the purpose of the file
+	Purpose PurposeType
+}
+
 // File struct represents an OpenAPI file.
 type File struct {
-	Bytes     int    `json:"bytes"`
-	CreatedAt int64  `json:"created_at"`
-	ID        string `json:"id"`
-	FileName  string `json:"filename"`
-	Object    string `json:"object"`
-	Owner     string `json:"owner"`
-	Purpose   string `json:"purpose"`
+	Bytes         int    `json:"bytes"`
+	CreatedAt     int64  `json:"created_at"`
+	ID            string `json:"id"`
+	FileName      string `json:"filename"`
+	Object        string `json:"object"`
+	Status        string `json:"status"`
+	Purpose       string `json:"purpose"`
+	StatusDetails string `json:"status_details"`
+
+	httpHeader
 }
 
 // FilesList is a list of files that belong to the user or organization.
 type FilesList struct {
 	Files []File `json:"data"`
+
+	httpHeader
+}
+
+// CreateFileBytes uploads bytes directly to OpenAI without requiring a local file.
+func (c *Client) CreateFileBytes(ctx context.Context, request FileBytesRequest) (file File, err error) {
+	var b bytes.Buffer
+	reader := bytes.NewReader(request.Bytes)
+	builder := c.createFormBuilder(&b)
+
+	err = builder.WriteField("purpose", string(request.Purpose))
+	if err != nil {
+		return
+	}
+
+	err = builder.CreateFormFileReader("file", reader, request.Name)
+	if err != nil {
+		return
+	}
+
+	err = builder.Close()
+	if err != nil {
+		return
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, c.fullURL("/files"),
+		withBody(&b), withContentType(builder.FormDataContentType()))
+	if err != nil {
+		return
+	}
+
+	err = c.sendRequest(req, &file)
+	return
 }
 
 // CreateFile uploads a jsonl file to GPT3
@@ -46,6 +102,7 @@ func (c *Client) CreateFile(ctx context.Context, request FileRequest) (file File
 	if err != nil {
 		return
 	}
+	defer fileData.Close()
 
 	err = builder.CreateFormFile("file", fileData)
 	if err != nil {
@@ -103,13 +160,12 @@ func (c *Client) GetFile(ctx context.Context, fileID string) (file File, err err
 	return
 }
 
-func (c *Client) GetFileContent(ctx context.Context, fileID string) (content io.ReadCloser, err error) {
+func (c *Client) GetFileContent(ctx context.Context, fileID string) (content RawResponse, err error) {
 	urlSuffix := fmt.Sprintf("/files/%s/content", fileID)
 	req, err := c.newRequest(ctx, http.MethodGet, c.fullURL(urlSuffix))
 	if err != nil {
 		return
 	}
 
-	content, err = c.sendRequestRaw(req)
-	return
+	return c.sendRequestRaw(req)
 }

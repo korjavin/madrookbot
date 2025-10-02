@@ -28,6 +28,8 @@ type EditsResponse struct {
 	Created int64         `json:"created"`
 	Usage   Usage         `json:"usage"`
 	Choices []EditsChoice `json:"choices"`
+
+	httpHeader
 }
 
 // Edits Perform an API call to the Edits endpoint.
@@ -36,7 +38,12 @@ will need to migrate to GPT-3.5 Turbo by January 4, 2024.
 You can use CreateChatCompletion or CreateChatCompletionStream instead.
 */
 func (c *Client) Edits(ctx context.Context, request EditsRequest) (response EditsResponse, err error) {
-	req, err := c.newRequest(ctx, http.MethodPost, c.fullURL("/edits", fmt.Sprint(request.Model)), withBody(request))
+	req, err := c.newRequest(
+		ctx,
+		http.MethodPost,
+		c.fullURL("/edits", withModel(fmt.Sprint(request.Model))),
+		withBody(request),
+	)
 	if err != nil {
 		return
 	}

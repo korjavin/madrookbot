@@ -48,6 +48,7 @@ func getGPTAnswerWithSystem(msg, system string) (string, error) {
 		openai.ChatCompletionRequest{
 			Model:       os.Getenv("GPT_MODEL"),
 			Temperature: getTemperature(),
+			ServiceTier: "flex",
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleSystem,
@@ -109,6 +110,7 @@ func getGPTAnswerWithHistory(msg, systemPrompt string, history []ConversationNod
 		openai.ChatCompletionRequest{
 			Model:       os.Getenv("GPT_MODEL"),
 			Temperature: getTemperature(),
+			ServiceTier: "flex",
 			Messages:    messages,
 		},
 	)

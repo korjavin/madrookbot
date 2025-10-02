@@ -5,9 +5,9 @@
 
 This library provides unofficial Go clients for [OpenAI API](https://platform.openai.com/). We support: 
 
-* ChatGPT
+* ChatGPT 4o, o1
 * GPT-3, GPT-4
-* DALL·E 2
+* DALL·E 2, DALL·E 3, GPT Image 1
 * Whisper
 
 ## Installation
@@ -141,7 +141,7 @@ func main() {
 	ctx := context.Background()
 
 	req := openai.CompletionRequest{
-		Model:     openai.GPT3Ada,
+		Model:     openai.GPT3Babbage002,
 		MaxTokens: 5,
 		Prompt:    "Lorem ipsum",
 	}
@@ -174,7 +174,7 @@ func main() {
 	ctx := context.Background()
 
 	req := openai.CompletionRequest{
-		Model:     openai.GPT3Ada,
+		Model:     openai.GPT3Babbage002,
 		MaxTokens: 5,
 		Prompt:    "Lorem ipsum",
 		Stream:    true,
@@ -358,6 +358,66 @@ func main() {
 </details>
 
 <details>
+<summary>GPT Image 1 image generation</summary>
+
+```go
+package main
+
+import (
+	"context"
+	"encoding/base64"
+	"fmt"
+	"os"
+
+	openai "github.com/sashabaranov/go-openai"
+)
+
+func main() {
+	c := openai.NewClient("your token")
+	ctx := context.Background()
+
+	req := openai.ImageRequest{
+		Prompt:            "Parrot on a skateboard performing a trick. Large bold text \"SKATE MASTER\" banner at the bottom of the image. Cartoon style, natural light, high detail, 1:1 aspect ratio.",
+		Background:        openai.CreateImageBackgroundOpaque,
+		Model:             openai.CreateImageModelGptImage1,
+		Size:              openai.CreateImageSize1024x1024,
+		N:                 1,
+		Quality:           openai.CreateImageQualityLow,
+		OutputCompression: 100,
+		OutputFormat:      openai.CreateImageOutputFormatJPEG,
+		// Moderation: 		 openai.CreateImageModerationLow,
+		// User: 					 "",
+	}
+
+	resp, err := c.CreateImage(ctx, req)
+	if err != nil {
+		fmt.Printf("Image creation Image generation with GPT Image 1error: %v\n", err)
+		return
+	}
+
+	fmt.Println("Image Base64:", resp.Data[0].B64JSON)
+
+	// Decode the base64 data
+	imgBytes, err := base64.StdEncoding.DecodeString(resp.Data[0].B64JSON)
+	if err != nil {
+		fmt.Printf("Base64 decode error: %v\n", err)
+		return
+	}
+
+	// Write image to file
+	outputPath := "generated_image.jpg"
+	err = os.WriteFile(outputPath, imgBytes, 0644)
+	if err != nil {
+		fmt.Printf("Failed to write image file: %v\n", err)
+		return
+	}
+
+	fmt.Printf("The image was saved as %s\n", outputPath)
+}
+```
+</details>
+
+<details>
 <summary>Configuring proxy</summary>
 
 ```go
@@ -453,7 +513,7 @@ func main() {
 	config := openai.DefaultAzureConfig("your Azure OpenAI Key", "https://your Azure OpenAI Endpoint")
 	// If you use a deployment name different from the model name, you can customize the AzureModelMapperFunc function
 	// config.AzureModelMapperFunc = func(model string) string {
-	// 	azureModelMapping = map[string]string{
+	// 	azureModelMapping := map[string]string{
 	// 		"gpt-3.5-turbo": "your gpt-3.5-turbo deployment name",
 	// 	}
 	// 	return azureModelMapping[model]
@@ -484,6 +544,62 @@ func main() {
 </details>
 
 <details>
+<summary>Embedding Semantic Similarity</summary>
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	openai "github.com/sashabaranov/go-openai"
+
+)
+
+func main() {
+	client := openai.NewClient("your-token")
+
+	// Create an EmbeddingRequest for the user query
+	queryReq := openai.EmbeddingRequest{
+		Input: []string{"How many chucks would a woodchuck chuck"},
+		Model: openai.AdaEmbeddingV2,
+	}
+
+	// Create an embedding for the user query
+	queryResponse, err := client.CreateEmbeddings(context.Background(), queryReq)
+	if err != nil {
+		log.Fatal("Error creating query embedding:", err)
+	}
+
+	// Create an EmbeddingRequest for the target text
+	targetReq := openai.EmbeddingRequest{
+		Input: []string{"How many chucks would a woodchuck chuck if the woodchuck could chuck wood"},
+		Model: openai.AdaEmbeddingV2,
+	}
+
+	// Create an embedding for the target text
+	targetResponse, err := client.CreateEmbeddings(context.Background(), targetReq)
+	if err != nil {
+		log.Fatal("Error creating target embedding:", err)
+	}
+
+	// Now that we have the embeddings for the user query and the target text, we
+	// can calculate their similarity.
+	queryEmbedding := queryResponse.Data[0]
+	targetEmbedding := targetResponse.Data[0]
+
+	similarity, err := queryEmbedding.DotProduct(&targetEmbedding)
+	if err != nil {
+		log.Fatal("Error calculating dot product:", err)
+	}
+
+	log.Printf("The similarity score between the query and the target is %f", similarity)
+}
+
+```
+</details>
+
+<details>
 <summary>Azure OpenAI Embeddings</summary>
 
 ```go
@@ -503,7 +619,7 @@ func main() {
 
 	//If you use a deployment name different from the model name, you can customize the AzureModelMapperFunc function
 	//config.AzureModelMapperFunc = func(model string) string {
-	//    azureModelMapping = map[string]string{
+	//    azureModelMapping := map[string]string{
 	//        "gpt-3.5-turbo":"your gpt-3.5-turbo deployment name",
 	//    }
 	//    return azureModelMapping[model]
@@ -580,7 +696,7 @@ FunctionDefinition{
       },
       "unit": {
         Type: jsonschema.String,
-        Enum: []string{"celcius", "fahrenheit"},
+        Enum: []string{"celsius", "fahrenheit"},
       },
     },
     Required: []string{"location"},
@@ -631,10 +747,15 @@ func main() {
 	client := openai.NewClient("your token")
 	ctx := context.Background()
 
-	// create a .jsonl file with your training data
+	// create a .jsonl file with your training data for conversational model
 	// {"prompt": "<prompt text>", "completion": "<ideal generated text>"}
 	// {"prompt": "<prompt text>", "completion": "<ideal generated text>"}
 	// {"prompt": "<prompt text>", "completion": "<ideal generated text>"}
+
+	// chat models are trained using the following file format:
+	// {"messages": [{"role": "system", "content": "Marv is a factual chatbot that is also sarcastic."}, {"role": "user", "content": "What's the capital of France?"}, {"role": "assistant", "content": "Paris, as if everyone doesn't know that already."}]}
+	// {"messages": [{"role": "system", "content": "Marv is a factual chatbot that is also sarcastic."}, {"role": "user", "content": "Who wrote 'Romeo and Juliet'?"}, {"role": "assistant", "content": "Oh, just some guy named William Shakespeare. Ever heard of him?"}]}
+	// {"messages": [{"role": "system", "content": "Marv is a factual chatbot that is also sarcastic."}, {"role": "user", "content": "How far is the Moon from Earth?"}, {"role": "assistant", "content": "Around 384,400 kilometers. Give or take a few, like that really matters."}]}
 
 	// you can use openai cli tool to validate the data
 	// For more info - https://platform.openai.com/docs/guides/fine-tuning
@@ -648,29 +769,29 @@ func main() {
 		return
 	}
 
-	// create a fine tune job
+	// create a fine tuning job
 	// Streams events until the job is done (this often takes minutes, but can take hours if there are many jobs in the queue or your dataset is large)
 	// use below get method to know the status of your model
-	tune, err := client.CreateFineTune(ctx, openai.FineTuneRequest{
+	fineTuningJob, err := client.CreateFineTuningJob(ctx, openai.FineTuningJobRequest{
 		TrainingFile: file.ID,
-		Model:        "ada", // babbage, curie, davinci, or a fine-tuned model created after 2022-04-21.
+		Model:        "davinci-002", // gpt-3.5-turbo-0613, babbage-002.
 	})
 	if err != nil {
 		fmt.Printf("Creating new fine tune model error: %v\n", err)
 		return
 	}
 
-	getTune, err := client.GetFineTune(ctx, tune.ID)
+	fineTuningJob, err = client.RetrieveFineTuningJob(ctx, fineTuningJob.ID)
 	if err != nil {
 		fmt.Printf("Getting fine tune model error: %v\n", err)
 		return
 	}
-	fmt.Println(getTune.FineTunedModel)
+	fmt.Println(fineTuningJob.FineTunedModel)
 
-	// once the status of getTune is `succeeded`, you can use your fine tune model in Completion Request
+	// once the status of fineTuningJob is `succeeded`, you can use your fine tune model in Completion Request or Chat Completion Request
 
 	// resp, err := client.CreateCompletion(ctx, openai.CompletionRequest{
-	//	 Model:  getTune.FineTunedModel,
+	//	 Model:  fineTuningJob.FineTunedModel,
 	//	 Prompt: "your prompt",
 	// })
 	// if err != nil {
@@ -679,6 +800,70 @@ func main() {
 	// }
 	//
 	// fmt.Println(resp.Choices[0].Text)
+}
+```
+</details>
+
+<details>
+<summary>Structured Outputs</summary>
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai/jsonschema"
+)
+
+func main() {
+	client := openai.NewClient("your token")
+	ctx := context.Background()
+
+	type Result struct {
+		Steps []struct {
+			Explanation string `json:"explanation"`
+			Output      string `json:"output"`
+		} `json:"steps"`
+		FinalAnswer string `json:"final_answer"`
+	}
+	var result Result
+	schema, err := jsonschema.GenerateSchemaForType(result)
+	if err != nil {
+		log.Fatalf("GenerateSchemaForType error: %v", err)
+	}
+	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: openai.GPT4oMini,
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: "You are a helpful math tutor. Guide the user through the solution step by step.",
+			},
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: "how can I solve 8x + 7 = -23",
+			},
+		},
+		ResponseFormat: &openai.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
+			JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
+				Name:   "math_reasoning",
+				Schema: schema,
+				Strict: true,
+			},
+		},
+	})
+	if err != nil {
+		log.Fatalf("CreateChatCompletion error: %v", err)
+	}
+	err = schema.Unmarshal(resp.Choices[0].Message.Content, &result)
+	if err != nil {
+		log.Fatalf("Unmarshal schema error: %v", err)
+	}
+	fmt.Println(result)
 }
 ```
 </details>
@@ -696,8 +881,9 @@ Even when specifying a temperature field of 0, it doesn't guarantee that you'll 
 Due to the factors mentioned above, different answers may be returned even for the same question.
 
 **Workarounds:**
-1. Using `math.SmallestNonzeroFloat32`: By specifying `math.SmallestNonzeroFloat32` in the temperature field instead of 0, you can mimic the behavior of setting it to 0.
-2. Limiting Token Count: By limiting the number of tokens in the input and output and especially avoiding large requests close to 32k tokens, you can reduce the risk of non-deterministic behavior.
+1. As of November 2023, use [the new `seed` parameter](https://platform.openai.com/docs/guides/text-generation/reproducible-outputs) in conjunction with the `system_fingerprint` response field, alongside Temperature management.
+2. Try using `math.SmallestNonzeroFloat32`: By specifying `math.SmallestNonzeroFloat32` in the temperature field instead of 0, you can mimic the behavior of setting it to 0.
+3. Limiting Token Count: By limiting the number of tokens in the input and output and especially avoiding large requests close to 32k tokens, you can reduce the risk of non-deterministic behavior.
 
 By adopting these strategies, you can expect more consistent results.
 
