@@ -18,10 +18,10 @@ jobs:
         with:
           go-version: '1.24'
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.57.2
-          args: -E gofumpt -E revive --out-${NO_FUTURE}format colored-line-number
+          version: latest
+          args: -E gofumpt -E revive --timeout=5m
 
   # build_master_image:
   #   name: Build master image
