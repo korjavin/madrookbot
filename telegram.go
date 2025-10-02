@@ -205,11 +205,13 @@ Use "read: <text>" to convert text to speech`
 			}
 		}
 
-		// Handle GPT questions when bot is mentioned (but not "read:" prefix)
+		// Handle GPT questions when bot is mentioned (but not "read:" or "image:" prefix)
 		if client != nil && strings.Contains(strings.ToUpper(text), strings.ToUpper(name)) {
 			upperText := strings.ToUpper(text)
-			// Skip if this is a "read:" request
-			if !strings.HasPrefix(upperText, "READ:") && !strings.Contains(upperText, " READ:") {
+			// Skip if this is a "read:" or "image:" request
+			isRead := strings.HasPrefix(upperText, "READ:") || strings.Contains(upperText, " READ:")
+			isImage := strings.HasPrefix(upperText, "IMAGE:") || strings.Contains(upperText, " IMAGE:")
+			if !isRead && !isImage {
 				// Extract question and remove bot mention
 				question := regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(text, "")
 				question = strings.TrimSpace(question)
