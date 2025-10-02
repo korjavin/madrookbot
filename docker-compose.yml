@@ -22,6 +22,9 @@ services:
       - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID:-}
       - ELEVENLABS_VOICE_NAME=${ELEVENLABS_VOICE_NAME:-}
       - ELEVENLABS_MODEL_ID=${ELEVENLABS_MODEL_ID}
+      - REVIEW_PERCENTAGE=${REVIEW_PERCENTAGE:-1.0}
+      - REVIEW_MIN_LENGTH=${REVIEW_MIN_LENGTH:-130}
+      - REVIEW_PROMPT=${REVIEW_PROMPT:-}
     volumes:
       - ./data:/bot/data
     restart: unless-stopped

@@ -68,6 +68,22 @@ func botGo() {
 				}
 			}
 
+			// English review feature - randomly check messages for major mistakes
+			minLength := getReviewMinLength()
+			if text != "" && isReviewableMessage(text, minLength) && shouldReviewMessage() {
+				log.Printf("[INFO] Reviewing message from %s (length: %d)", messg.From.UserName, len(text))
+				review, err := reviewEnglish(text)
+				if err == nil && review != "" {
+					log.Printf("[INFO] Major mistakes found, sending review")
+					msg := tgbotapi.NewMessage(messg.Chat.ID, review)
+					msg.ReplyToMessageID = messg.MessageID
+					_, err = bot.Send(msg)
+					if err != nil {
+						log.Printf("[ERROR] Failed to send review: %v", err)
+					}
+				}
+			}
+
 			// Get class group ID
 			classGroupID, err := getClassGroupID()
 			if err == nil && int64(messg.Chat.ID) == classGroupID {
