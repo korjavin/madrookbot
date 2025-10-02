@@ -62,15 +62,20 @@ func generateImage(prompt string) (*bytes.Buffer, error) {
 		return nil, fmt.Errorf("no image generated")
 	}
 
+	log.Printf("[DEBUG] Response has %d candidates, %d parts", len(resp.Candidates), len(resp.Candidates[0].Content.Parts))
+
 	// The response should contain image data as Blob
-	for _, part := range resp.Candidates[0].Content.Parts {
+	for i, part := range resp.Candidates[0].Content.Parts {
+		log.Printf("[DEBUG] Part %d type: %T", i, part)
+
 		if blob, ok := part.(genai.Blob); ok {
-			// Blob contains the image data
+			log.Printf("[DEBUG] Found Blob with %d bytes, MimeType: %s", len(blob.Data), blob.MIMEType)
 			buffer := bytes.NewBuffer(blob.Data)
 			return buffer, nil
 		}
 		// Try to extract from text if it's base64
 		if text, ok := part.(genai.Text); ok {
+			log.Printf("[DEBUG] Found Text: %s", string(text)[:min(100, len(text))])
 			// Decode base64 if needed
 			decoded, err := base64.StdEncoding.DecodeString(string(text))
 			if err == nil && len(decoded) > 0 {
