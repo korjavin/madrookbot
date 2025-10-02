@@ -37,16 +37,24 @@ func initElevenLabs() {
 			return
 		}
 
-		voiceName := os.Getenv("ELEVENLABS_VOICE_NAME")
-		if voiceName == "" {
-			elevenLabsInitErr = fmt.Errorf("ELEVENLABS_VOICE_NAME is not set")
+		elevenLabsModelID = os.Getenv("ELEVENLABS_MODEL_ID")
+		if elevenLabsModelID == "" {
+			elevenLabsInitErr = fmt.Errorf("ELEVENLABS_MODEL_ID is not set")
 			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
 
-		elevenLabsModelID = os.Getenv("ELEVENLABS_MODEL_ID")
-		if elevenLabsModelID == "" {
-			elevenLabsInitErr = fmt.Errorf("ELEVENLABS_MODEL_ID is not set")
+		// Check if voice ID is directly provided
+		elevenLabsVoiceID = os.Getenv("ELEVENLABS_VOICE_ID")
+		if elevenLabsVoiceID != "" {
+			log.Printf("[INFO] ElevenLabs initialized with voice ID: %s", elevenLabsVoiceID)
+			return
+		}
+
+		// Fallback to voice name lookup
+		voiceName := os.Getenv("ELEVENLABS_VOICE_NAME")
+		if voiceName == "" {
+			elevenLabsInitErr = fmt.Errorf("either ELEVENLABS_VOICE_ID or ELEVENLABS_VOICE_NAME must be set")
 			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
