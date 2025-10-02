@@ -35,6 +35,14 @@ func main() {
 		initGPT()
 	}
 
+	// Initialize Gemini for image generation if API key is set
+	if os.Getenv("GEMINI_API_KEY") != "" {
+		err = initGemini()
+		if err != nil {
+			log.Printf("Error initializing Gemini: %v", err)
+		}
+	}
+
 	// Set up graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

@@ -9,6 +9,10 @@ A Telegram bot for managing group discussions and media suggestions.
   - Reply to bot's answers to continue conversations with context (5 exchanges history)
   - Multiple users can branch conversations from the same message
   - Database-backed conversation persistence with 7-day retention
+- **Image Generation**: Use `image: <prompt>` to generate images via Google Gemini (free tier available)
+  - Case-insensitive prefix
+  - Supports Imagen 3 (default) or configurable models
+  - Generates and sends images directly in chat
 - **Text-to-Speech**: Use `read: <text>` to generate audio via ElevenLabs
 - **Activity Statistics**: `/stat` command shows group activity charts (admins only)
   - Tracks message activity in hourly buckets
@@ -43,6 +47,7 @@ The bot helps manage a weekly discussion group by:
 - `/idiom <term>` - Shows the definition of an idiom from idioms.thefreedictionary.com
 - `/stat` - Show group activity statistics (admins only, 1/hour rate limit)
 - Mention the bot (`@bot_name <question>`) - Ask GPT, reply to continue conversation
+- `image: <prompt>` - Generate images using Google Gemini AI
 - `read: <text>` - Convert text to speech using ElevenLabs
 
 ## Environment Variables
@@ -58,6 +63,10 @@ The bot helps manage a weekly discussion group by:
 - `GPT_SYSTEM_PROMPT` - Custom system prompt for conversations (defaults to helpful assistant)
 - `OPENAI_TEMPERATURE` - Temperature for GPT responses (default: 1.0)
 - `OPENAI_URL` - OpenAI API base URL (default: https://api.openai.com/v1)
+
+### Google Gemini Image Generation (optional)
+- `GEMINI_API_KEY` - Google Gemini API key (free tier available)
+- `GEMINI_IMAGE_MODEL` - Image model to use (default: imagen-3.0-generate-001)
 
 ### ElevenLabs TTS (optional)
 - `ELEVENLABS_API_KEY` - Your ElevenLabs API key

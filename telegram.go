@@ -101,7 +101,8 @@ func botGo() {
 /stat - Show group activity statistics (admins only, 1/hour)
 
 Mention me @` + name + ` to ask questions (reply to continue conversation)
-Use "read: <text>" to convert text to speech.`
+Use "image: <prompt>" to generate images with AI
+Use "read: <text>" to convert text to speech`
 
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
 			msg.ReplyToMessageID = messg.MessageID
@@ -277,8 +278,44 @@ Use "read: <text>" to convert text to speech.`
 			continue
 		}
 
-		// Handle "read:" prefix for text-to-speech
+		// Handle "image:" prefix for image generation
 		upperText := strings.ToUpper(text)
+		if strings.HasPrefix(upperText, "IMAGE:") || strings.Contains(upperText, " IMAGE:") {
+			// Extract prompt after "image:"
+			imageIdx := strings.Index(upperText, "IMAGE:")
+			if imageIdx != -1 {
+				prompt := strings.TrimSpace(text[imageIdx+6:]) // Skip "image:"
+				// Remove bot mention if present
+				prompt = regexp.MustCompile(`(?i)@`+name).ReplaceAllLiteralString(prompt, "")
+				prompt = strings.TrimSpace(prompt)
+
+				if prompt != "" {
+					log.Printf("[%s] Image generation request: %s\n", messg.From.UserName, prompt)
+
+					imageData, err := generateImage(prompt)
+					if err != nil {
+						log.Printf("[ERROR] Image generation failed: %v", err)
+						errorMsg := tgbotapi.NewMessage(messg.Chat.ID, "Sorry, I couldn't generate the image. "+err.Error())
+						errorMsg.ReplyToMessageID = messg.MessageID
+						bot.Send(errorMsg)
+					} else {
+						photoMsg := tgbotapi.NewPhotoUpload(messg.Chat.ID, tgbotapi.FileBytes{
+							Name:  "generated_image.png",
+							Bytes: imageData.Bytes(),
+						})
+						photoMsg.ReplyToMessageID = messg.MessageID
+						photoMsg.Caption = "Generated: " + prompt
+						_, err = bot.Send(photoMsg)
+						if err != nil {
+							log.Printf("[ERROR] Failed to send image: %v", err)
+						}
+					}
+				}
+			}
+			continue
+		}
+
+		// Handle "read:" prefix for text-to-speech
 		if strings.HasPrefix(upperText, "READ:") || strings.Contains(upperText, " READ:") {
 			// Extract text after "read:"
 			readIdx := strings.Index(upperText, "READ:")
