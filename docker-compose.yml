@@ -14,7 +14,7 @@ services:
       - GPT_SYSTEM_MSG=${GPT_SYSTEM_MSG}
       - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-1.0}
       - OPENAI_URL=${OPENAI_URL:-https://api.openai.com/v1}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL:-gemini-2.5-flash-image-preview}
       - OWNER_ID=${OWNER_ID}
       - CLASS_GROUP_ID=${CLASS_GROUP_ID}

@@ -100,8 +100,14 @@ func botGo() {
 /del <number> - Delete a media suggestion
 /stat - Show group activity statistics (admins only, 1/hour)
 
-Mention me @` + name + ` to ask questions (reply to continue conversation)
-Use "image: <prompt>" to generate images with AI
+Mention me @` + name + ` to ask questions (reply to continue conversation)`
+
+			// Add optional features if enabled
+			if geminiClient != nil {
+				answer += `
+Use "image: <prompt>" to generate images with AI`
+			}
+			answer += `
 Use "read: <text>" to convert text to speech`
 
 			msg := tgbotapi.NewMessage(messg.Chat.ID, answer)
@@ -280,9 +286,9 @@ Use "read: <text>" to convert text to speech`
 			continue
 		}
 
-		// Handle "image:" prefix for image generation
+		// Handle "image:" prefix for image generation (only if Gemini is enabled)
 		upperText := strings.ToUpper(text)
-		if strings.HasPrefix(upperText, "IMAGE:") || strings.Contains(upperText, " IMAGE:") {
+		if geminiClient != nil && (strings.HasPrefix(upperText, "IMAGE:") || strings.Contains(upperText, " IMAGE:")) {
 			// Extract prompt after "image:"
 			imageIdx := strings.Index(upperText, "IMAGE:")
 			if imageIdx != -1 {
