@@ -16,6 +16,18 @@ var (
 func init() {
 	// Initialize random generator for review feature
 	reviewRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Log review feature configuration at startup
+	percentage := getReviewPercentage()
+	minLength := getReviewMinLength()
+	hasCustomPrompt := os.Getenv("REVIEW_PROMPT") != ""
+
+	if percentage > 0 {
+		log.Printf("[INFO] English review feature enabled: percentage=%.2f%%, minLength=%d, customPrompt=%v",
+			percentage, minLength, hasCustomPrompt)
+	} else {
+		log.Printf("[INFO] English review feature disabled (percentage=0)")
+	}
 }
 
 // getReviewPercentage returns the percentage chance of reviewing a message (0-100)
@@ -94,26 +106,32 @@ Be strict - only report issues you're absolutely confident about. When in doubt,
 func shouldReviewMessage() bool {
 	percentage := getReviewPercentage()
 	if percentage <= 0 {
+		log.Printf("[DEBUG] Review feature disabled (percentage: %.2f)", percentage)
 		return false
 	}
 	randomValue := reviewRand.Float64() * 100.0
-	return randomValue < percentage
+	shouldReview := randomValue < percentage
+	log.Printf("[DEBUG] Review random check: %.2f < %.2f = %v", randomValue, percentage, shouldReview)
+	return shouldReview
 }
 
 // isReviewableMessage checks if the message is eligible for review
 // (plain text, not a command, not a bot mention, not too short)
 func isReviewableMessage(text string, minLength int) bool {
 	if text == "" {
+		log.Printf("[DEBUG] Review skipped: empty message")
 		return false
 	}
 
 	// Skip if too short
 	if len(text) < minLength {
+		log.Printf("[DEBUG] Review skipped: message too short (len=%d, min=%d)", len(text), minLength)
 		return false
 	}
 
 	// Skip if it's a command
 	if strings.HasPrefix(text, "/") {
+		log.Printf("[DEBUG] Review skipped: command detected")
 		return false
 	}
 
@@ -122,9 +140,11 @@ func isReviewableMessage(text string, minLength int) bool {
 	if strings.Contains(upperText, "READ:") ||
 		strings.Contains(upperText, "IMAGE:") ||
 		strings.HasPrefix(upperText, "@") {
+		log.Printf("[DEBUG] Review skipped: bot interaction pattern detected")
 		return false
 	}
 
+	log.Printf("[DEBUG] Message is reviewable (len=%d)", len(text))
 	return true
 }
 
@@ -132,10 +152,12 @@ func isReviewableMessage(text string, minLength int) bool {
 // Returns the review text if major mistakes found, empty string otherwise
 func reviewEnglish(text string) (string, error) {
 	if client == nil {
+		log.Printf("[WARN] Review skipped: GPT client not initialized")
 		return "", nil
 	}
 
 	systemPrompt := getReviewPrompt()
+	log.Printf("[DEBUG] Sending text to GPT for review (length: %d)", len(text))
 
 	// Prepare the user message
 	userMessage := "Review this text:\n\n" + text
@@ -146,16 +168,21 @@ func reviewEnglish(text string) (string, error) {
 		return "", err
 	}
 
+	log.Printf("[DEBUG] GPT review response received (length: %d)", len(response))
+
 	// Check if the response indicates major mistakes were found
 	if strings.Contains(response, "NO MAJOR MISTAKES") {
+		log.Printf("[INFO] Review complete: no major mistakes found")
 		return "", nil
 	}
 
 	// Only return the review if it contains "MISTAKES FOUND"
 	if strings.Contains(response, "MISTAKES FOUND") {
+		log.Printf("[INFO] Review complete: major mistakes found, will send review")
 		return response, nil
 	}
 
 	// If response is ambiguous, don't send it
+	log.Printf("[WARN] Review complete: ambiguous response (neither MISTAKES FOUND nor NO MAJOR MISTAKES), skipping")
 	return "", nil
 }

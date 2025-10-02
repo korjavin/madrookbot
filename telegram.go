@@ -71,16 +71,24 @@ func botGo() {
 			// English review feature - randomly check messages for major mistakes
 			minLength := getReviewMinLength()
 			if text != "" && isReviewableMessage(text, minLength) && shouldReviewMessage() {
-				log.Printf("[INFO] Reviewing message from %s (length: %d)", messg.From.UserName, len(text))
+				log.Printf("[REVIEW] Selected for review: user=%s, chatID=%d, msgID=%d, length=%d",
+					messg.From.UserName, messg.Chat.ID, messg.MessageID, len(text))
 				review, err := reviewEnglish(text)
 				if err == nil && review != "" {
-					log.Printf("[INFO] Major mistakes found, sending review")
+					log.Printf("[REVIEW] Sending review to chatID=%d, replyTo=%d",
+						messg.Chat.ID, messg.MessageID)
 					msg := tgbotapi.NewMessage(messg.Chat.ID, review)
 					msg.ReplyToMessageID = messg.MessageID
 					_, err = bot.Send(msg)
 					if err != nil {
 						log.Printf("[ERROR] Failed to send review: %v", err)
+					} else {
+						log.Printf("[REVIEW] Review sent successfully")
 					}
+				} else if err != nil {
+					log.Printf("[REVIEW] Review failed with error: %v", err)
+				} else {
+					log.Printf("[REVIEW] No review to send (no major mistakes or ambiguous response)")
 				}
 			}
 
