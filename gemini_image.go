@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -37,7 +36,7 @@ func initGemini() error {
 func getGeminiImageModel() string {
 	model := os.Getenv("GEMINI_IMAGE_MODEL")
 	if model == "" {
-		return "imagen-3.0-generate-001" // Default to Imagen 3
+		return "gemini-2.5-flash-image-preview" // Default to Gemini 2.5 Flash Image
 	}
 	return model
 }
@@ -64,26 +63,36 @@ func generateImage(prompt string) (*bytes.Buffer, error) {
 
 	log.Printf("[DEBUG] Response has %d candidates, %d parts", len(resp.Candidates), len(resp.Candidates[0].Content.Parts))
 
-	// The response should contain image data as Blob
+	// Gemini 2.5 Flash Image returns both text description AND image blobs
+	// We need to find and extract the image blob(s)
+	var imageBuffer *bytes.Buffer
+	var textDescription string
+
 	for i, part := range resp.Candidates[0].Content.Parts {
 		log.Printf("[DEBUG] Part %d type: %T", i, part)
 
-		if blob, ok := part.(genai.Blob); ok {
-			log.Printf("[DEBUG] Found Blob with %d bytes, MimeType: %s", len(blob.Data), blob.MIMEType)
-			buffer := bytes.NewBuffer(blob.Data)
-			return buffer, nil
-		}
-		// Try to extract from text if it's base64
-		if text, ok := part.(genai.Text); ok {
-			log.Printf("[DEBUG] Found Text: %s", string(text)[:min(100, len(text))])
-			// Decode base64 if needed
-			decoded, err := base64.StdEncoding.DecodeString(string(text))
-			if err == nil && len(decoded) > 0 {
-				buffer := bytes.NewBuffer(decoded)
-				return buffer, nil
+		switch p := part.(type) {
+		case genai.Blob:
+			log.Printf("[DEBUG] Found Blob with %d bytes, MimeType: %s", len(p.Data), p.MIMEType)
+			// Return the first image blob found
+			if imageBuffer == nil {
+				imageBuffer = bytes.NewBuffer(p.Data)
 			}
+		case genai.Text:
+			textPart := string(p)
+			if len(textPart) > 100 {
+				log.Printf("[DEBUG] Found Text (first 100 chars): %s...", textPart[:100])
+			} else {
+				log.Printf("[DEBUG] Found Text: %s", textPart)
+			}
+			textDescription = textPart
 		}
 	}
 
-	return nil, fmt.Errorf("could not extract image data from response")
+	if imageBuffer != nil {
+		log.Printf("[INFO] Successfully extracted image from response (with description: %s)", textDescription)
+		return imageBuffer, nil
+	}
+
+	return nil, fmt.Errorf("no image blob found in response (only got: %s)", textDescription)
 }

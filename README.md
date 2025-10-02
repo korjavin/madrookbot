@@ -65,8 +65,8 @@ The bot helps manage a weekly discussion group by:
 - `OPENAI_URL` - OpenAI API base URL (default: https://api.openai.com/v1)
 
 ### Google Gemini Image Generation (optional)
-- `GEMINI_API_KEY` - Google Gemini API key (free tier available)
-- `GEMINI_IMAGE_MODEL` - Image model to use (default: imagen-3.0-generate-001)
+- `GEMINI_API_KEY` - Google Gemini API key (has free tier limits)
+- `GEMINI_IMAGE_MODEL` - Image model to use (default: gemini-2.5-flash-image-preview)
 
 ### ElevenLabs TTS (optional)
 - `ELEVENLABS_API_KEY` - Your ElevenLabs API key
