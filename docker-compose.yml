@@ -28,6 +28,9 @@ services:
     volumes:
       - ./data:/bot/data
     restart: unless-stopped
+    depends_on:
+      - qdrant
+      - tool-api
 
   qdrant:
     image: qdrant/qdrant
@@ -46,3 +49,4 @@ services:
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL}
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
+    command: tail -f /dev/null
