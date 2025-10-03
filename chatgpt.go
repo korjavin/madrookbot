@@ -47,7 +47,7 @@ func getSearchChatHistoryTool() openai.Tool {
 		Type: openai.ToolTypeFunction,
 		Function: &openai.FunctionDefinition{
 			Name:        "search_chat_history",
-			Description: "Searches the private Telegram group chat history to find relevant messages based on a user's query. Use this to answer questions about past conversations, find specific information, or recall what someone said.",
+			Description: "Searches the private Telegram group chat (that can be refenced just as 'chat') history to find relevant messages based on a user's query. Use this to answer questions about past conversations, find specific information, or recall what someone said or wrote. Use it when you have asks about specific user messages or opinions expressed in the chat.",
 			Parameters: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
