@@ -46,6 +46,15 @@ func main() {
 		}
 	}
 
+	// Initialize Qdrant client if memory feature is enabled
+	if os.Getenv("MEMORY_GROUP_ID") != "" {
+		log.Println("[INFO] MEMORY_GROUP_ID is set, initializing Qdrant client...")
+		err = initQdrantClient()
+		if err != nil {
+			log.Fatalf("Error initializing Qdrant client: %v", err)
+		}
+	}
+
 	// Set up graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)

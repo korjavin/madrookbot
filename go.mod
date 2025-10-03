@@ -4,6 +4,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.1.0
 	github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e
 	github.com/google/generative-ai-go v0.20.1
+	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/qdrant/go-client v1.15.2
 	github.com/sashabaranov/go-openai v1.41.2
@@ -28,7 +29,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
