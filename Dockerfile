@@ -15,4 +15,5 @@ WORKDIR /bot
 # GPT_TOKEN - OpenAI API key (optional)
 # GPT_KEYWORDS - Keywords to trigger GPT (optional)
 # OWNER_ID - Telegram user ID of the bot owner
-ENTRYPOINT ["/bot/madrookbot"]
+# Default command (can be overridden in docker-compose.yml)
+CMD ["/bot/madrookbot"]
