@@ -39,7 +39,10 @@ func initQdrant() error {
 	apiKey := os.Getenv("QDRANT_API_KEY")
 	var perRpcCreds grpc.DialOption
 	if apiKey != "" {
-		perRpcCreds = grpc.WithPerRPCCredentials(perRPCCredentials(apiKey))
+		perRpcCreds = grpc.WithPerRPCCredentials(perRPCCredentials{
+			apiKey: apiKey,
+			useTls: useTls,
+		})
 	}
 
 	var conn *grpc.ClientConn
@@ -85,14 +88,17 @@ func searchQdrant(embedding []float32, topK int) ([]*qdrant.ScoredPoint, error) 
 	return res.GetResult(), nil
 }
 
-type perRPCCredentials string
+type perRPCCredentials struct {
+	apiKey string
+	useTls bool
+}
 
 func (p perRPCCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	return map[string]string{
-		"api-key": string(p),
+		"api-key": p.apiKey,
 	}, nil
 }
 
 func (p perRPCCredentials) RequireTransportSecurity() bool {
-	return true
+	return p.useTls
 }
