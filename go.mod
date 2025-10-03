@@ -8,6 +8,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/qdrant/go-client v1.15.2
 	github.com/sashabaranov/go-openai v1.41.2
+	github.com/stretchr/testify v1.11.1
 	github.com/wcharczuk/go-chart/v2 v2.1.2
 	golang.org/x/net v0.44.0
 	google.golang.org/api v0.251.0
@@ -22,6 +23,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/longrunning v0.5.7 // indirect
 	github.com/andybalholm/cascadia v0.0.0-20161224141413-349dd0209470 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -29,6 +31,7 @@ require (
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
@@ -46,6 +49,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250929231259-57b25ae835d4 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 go 1.24.0

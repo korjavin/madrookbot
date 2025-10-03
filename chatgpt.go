@@ -73,6 +73,30 @@ func getGPTAnswerWithSystem(msg, system string) (string, error) {
 	return "", fmt.Errorf("no answer")
 }
 
+func getEmbedding(text string) ([]float32, error) {
+	ctx := context.Background()
+	embeddingModel := os.Getenv("OPENAI_EMBEDDING_MODEL")
+	if embeddingModel == "" {
+		embeddingModel = "text-embedding-ada-002"
+	}
+
+	req := openai.EmbeddingRequest{
+		Input: []string{text},
+		Model: openai.EmbeddingModel(embeddingModel),
+	}
+
+	resp, err := client.CreateEmbeddings(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Data) > 0 {
+		return resp.Data[0].Embedding, nil
+	}
+
+	return nil, fmt.Errorf("no embedding returned")
+}
+
 // getGPTAnswerWithHistory uses conversation history for context
 func getGPTAnswerWithHistory(msg, systemPrompt string, history []ConversationNode) (string, error) {
 	ctx := context.Background()

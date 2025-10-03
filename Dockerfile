@@ -1,16 +1,21 @@
 FROM golang:1.24
 WORKDIR /go/src/app
 COPY . .
-RUN go build -mod=vendor -o /tmp/madrookbot
+RUN go build -mod=vendor -o /tmp/madrookbot .
+RUN go build -mod=vendor -o /tmp/tool-api ./cmd/tool-api
+RUN go build -mod=vendor -o /tmp/importer ./cmd/importer
 
 FROM debian:testing
 RUN apt-get update && apt-get -y install ca-certificates
 RUN mkdir /bot
 COPY --from=0 /tmp/madrookbot /bot/madrookbot
+COPY --from=0 /tmp/tool-api /bot/tool-api
+COPY --from=0 /tmp/importer /bot/importer
 WORKDIR /bot
 # Environment variables:
 # BOT_TOKEN - Telegram bot token
 # GPT_TOKEN - OpenAI API key (optional)
 # GPT_KEYWORDS - Keywords to trigger GPT (optional)
 # OWNER_ID - Telegram user ID of the bot owner
-ENTRYPOINT ["/bot/madrookbot"]
+# Default command (can be overridden in docker-compose.yml)
+CMD ["/bot/madrookbot"]
