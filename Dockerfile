@@ -2,11 +2,13 @@ FROM golang:1.24
 WORKDIR /go/src/app
 COPY . .
 RUN go build -mod=vendor -o /tmp/madrookbot
+RUN go build -mod=vendor -o /tmp/tool-api -tags toolapi .
 
 FROM debian:testing
 RUN apt-get update && apt-get -y install ca-certificates
 RUN mkdir /bot
 COPY --from=0 /tmp/madrookbot /bot/madrookbot
+COPY --from=0 /tmp/tool-api /bot/tool-api
 WORKDIR /bot
 # Environment variables:
 # BOT_TOKEN - Telegram bot token

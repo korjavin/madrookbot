@@ -1,22 +1,15 @@
+//go:build !toolapi
+
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
-
-	"github.com/korjavin/madrookbot/importer"
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "import" {
-		importer.Run()
-		return
-	}
-
 	// Initialize media suggestions database
 	err := initMediaSuggestions()
 	if err != nil {
@@ -76,17 +69,3 @@ func main() {
 	botGo()
 }
 
-// getEnvInt64 is a helper function to get int64 from environment variable
-func getEnvInt64(key string) (int64, error) {
-	valueStr := os.Getenv(key)
-	if valueStr == "" {
-		return 0, fmt.Errorf("%s environment variable not set", key)
-	}
-
-	value, err := strconv.ParseInt(valueStr, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid %s: %v", key, err)
-	}
-
-	return value, nil
-}
