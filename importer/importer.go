@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log"
 	"os"
@@ -73,6 +74,109 @@ func (m *Message) GetText() string {
 		return builder.String()
 	}
 	return ""
+}
+
+// generatePointID creates a deterministic 64-bit hash for a message
+// based on chat and message IDs to prevent collisions.
+func generatePointID(chatID int, messageID int) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("%d_%d", chatID, messageID)))
+	return h.Sum64()
+}
+
+// processBatch handles filtering, embedding, and upserting a single batch of messages.
+func processBatch(
+	ctx context.Context,
+	batch []Message,
+	minMessageLength int,
+	exportChatID int,
+	channelID string,
+	openaiClient *openai.Client,
+	pointsClient qdrant.PointsClient,
+) {
+	var textsToEmbed []string
+	var messagesToKeep []Message
+
+	for _, msg := range batch {
+		if msg.Type != "message" {
+			continue
+		}
+		text := msg.GetText()
+		if len(text) < minMessageLength {
+			continue
+		}
+		textsToEmbed = append(textsToEmbed, text)
+		messagesToKeep = append(messagesToKeep, msg)
+	}
+
+	if len(textsToEmbed) == 0 {
+		log.Println("No valid messages in this batch, skipping.")
+		return
+	}
+
+	log.Printf("Getting embeddings for %d messages...", len(textsToEmbed))
+
+	embeddingCtx, embeddingCancel := context.WithTimeout(ctx, time.Minute)
+	defer embeddingCancel()
+
+	resp, err := openaiClient.CreateEmbeddings(
+		embeddingCtx,
+		openai.EmbeddingRequest{
+			Input: textsToEmbed,
+			Model: openai.AdaEmbeddingV2,
+		},
+	)
+	if err != nil {
+		log.Printf("Error getting embeddings for batch: %v", err)
+		return
+	}
+
+	log.Printf("Got %d embeddings. Upserting to Qdrant...", len(resp.Data))
+
+	points := make([]*qdrant.PointStruct, 0, len(messagesToKeep))
+	for j, msg := range messagesToKeep {
+		timestamp, _ := time.Parse(time.RFC3339, msg.Date+"Z")
+		pointID := generatePointID(exportChatID, msg.ID)
+
+		payload := map[string]*qdrant.Value{
+			"message_id":    {Kind: &qdrant.Value_IntegerValue{IntegerValue: int64(msg.ID)}},
+			"user_id":       {Kind: &qdrant.Value_StringValue{StringValue: msg.FromID}},
+			"text":          {Kind: &qdrant.Value_StringValue{StringValue: textsToEmbed[j]}},
+			"timestamp_utc": {Kind: &qdrant.Value_StringValue{StringValue: timestamp.UTC().Format(time.RFC3339)}},
+			"telegram_link": {Kind: &qdrant.Value_StringValue{StringValue: fmt.Sprintf("https://t.me/c/%s/%d", channelID, msg.ID)}},
+		}
+
+		points = append(points, &qdrant.PointStruct{
+			Id: &qdrant.PointId{
+				PointIdOptions: &qdrant.PointId_Num{Num: pointID},
+			},
+			Payload: payload,
+			Vectors: &qdrant.Vectors{
+				VectorsOptions: &qdrant.Vectors_Vector{
+					Vector: &qdrant.Vector{
+						Data: resp.Data[j].Embedding,
+					},
+				},
+			},
+		})
+	}
+
+	upsertCtx, upsertCancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer upsertCancel()
+
+	wait := true
+	_, err = pointsClient.Upsert(upsertCtx, &qdrant.UpsertPoints{
+		CollectionName: collectionName,
+		Wait:           &wait,
+		Points:         points,
+	})
+
+	if err != nil {
+		log.Printf("Error upserting points for batch: %v", err)
+		return
+	}
+
+	log.Printf("Successfully upserted %d points to Qdrant.", len(points))
 }
 
 func Run() {
@@ -183,89 +287,7 @@ func Run() {
 		batch := export.Messages[i:end]
 
 		log.Printf("Processing batch %d-%d...", i, end-1)
-
-		var textsToEmbed []string
-		var messagesToKeep []Message
-
-		for _, msg := range batch {
-			if msg.Type != "message" {
-				continue
-			}
-			text := msg.GetText()
-			if len(text) < *minMessageLength {
-				continue
-			}
-			textsToEmbed = append(textsToEmbed, text)
-			messagesToKeep = append(messagesToKeep, msg)
-		}
-
-		if len(textsToEmbed) == 0 {
-			log.Println("No valid messages in this batch, skipping.")
-			continue
-		}
-
-		log.Printf("Getting embeddings for %d messages...", len(textsToEmbed))
-
-		embeddingCtx, embeddingCancel := context.WithTimeout(context.Background(), time.Minute)
-
-		resp, err := openaiClient.CreateEmbeddings(
-			embeddingCtx,
-			openai.EmbeddingRequest{
-				Input: textsToEmbed,
-				Model: openai.AdaEmbeddingV2,
-			},
-		)
-		embeddingCancel()
-		if err != nil {
-			log.Printf("Error getting embeddings for batch %d-%d: %v", i, end-1, err)
-			continue
-		}
-
-		log.Printf("Got %d embeddings. Upserting to Qdrant...", len(resp.Data))
-
-		points := make([]*qdrant.PointStruct, 0, len(messagesToKeep))
-		for j, msg := range messagesToKeep {
-			timestamp, _ := time.Parse(time.RFC3339, msg.Date+"Z")
-
-			payload := map[string]*qdrant.Value{
-				"message_id":    {Kind: &qdrant.Value_IntegerValue{IntegerValue: int64(msg.ID)}},
-				"user_id":       {Kind: &qdrant.Value_StringValue{StringValue: msg.FromID}},
-				"text":          {Kind: &qdrant.Value_StringValue{StringValue: textsToEmbed[j]}},
-				"timestamp_utc": {Kind: &qdrant.Value_StringValue{StringValue: timestamp.UTC().Format(time.RFC3339)}},
-				"telegram_link": {Kind: &qdrant.Value_StringValue{StringValue: fmt.Sprintf("https://t.me/c/%s/%d", channelID, msg.ID)}},
-			}
-
-			points = append(points, &qdrant.PointStruct{
-				Id: &qdrant.PointId{
-					PointIdOptions: &qdrant.PointId_Num{Num: uint64(msg.ID)},
-				},
-				Payload: payload,
-				Vectors: &qdrant.Vectors{
-					VectorsOptions: &qdrant.Vectors_Vector{
-						Vector: &qdrant.Vector{
-							Data: resp.Data[j].Embedding,
-						},
-					},
-				},
-			})
-		}
-
-		upsertCtx, upsertCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-
-		wait := true
-		_, err = pointsClient.Upsert(upsertCtx, &qdrant.UpsertPoints{
-			CollectionName: collectionName,
-			Wait:           &wait,
-			Points:         points,
-		})
-		upsertCancel()
-
-		if err != nil {
-			log.Printf("Error upserting points for batch %d-%d: %v", i, end-1, err)
-			continue
-		}
-
-		log.Printf("Successfully upserted %d points to Qdrant.", len(points))
+		processBatch(context.Background(), batch, *minMessageLength, export.ChatID, channelID, openaiClient, pointsClient)
 	}
 
 	log.Println("Importer finished processing all messages.")
