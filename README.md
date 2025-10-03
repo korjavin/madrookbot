@@ -74,6 +74,10 @@ The bot helps manage a weekly discussion group by:
 - `ELEVENLABS_MODEL_ID` - The ID of the ElevenLabs model to use
 
 ### Memory / Context Tool (optional)
+- `MEMORY_GROUP_ID` - The ID of the Telegram group where the bot should listen for messages to be stored in the memory.
+- `MIN_MESSAGE_LENGTH` - The minimum length of a message to be considered for memory storage (default: 20 characters).
+- `MESSAGE_COMBINE_WINDOW` - The time window in seconds within which consecutive messages from the same user are combined into a single entry (default: 90 seconds).
+- `QDRANT_HOST` - The hostname or IP address of the Qdrant service (default: `qdrant`).
 - `OPENAI_EMBEDDING_MODEL` - The model to use for generating message embeddings (e.g., `text-embedding-3-small`).
 
 ## Running

@@ -71,6 +71,15 @@ func botGo() {
 				}
 			}
 
+			// Memory feature: process and store message if it's from the memory group
+			memoryGroupIDStr := os.Getenv("MEMORY_GROUP_ID")
+			if memoryGroupIDStr != "" {
+				memoryGroupID, err := getEnvInt64("MEMORY_GROUP_ID")
+				if err == nil && messg.Chat.ID == memoryGroupID && text != "" && !strings.HasPrefix(text, "/") {
+					go processMessageForMemory(messg)
+				}
+			}
+
 			// English review feature - randomly check messages for major mistakes
 			minLength := getReviewMinLength()
 			if text != "" && isReviewableMessage(text, minLength) && shouldReviewMessage() {
