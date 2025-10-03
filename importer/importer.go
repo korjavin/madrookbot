@@ -79,6 +79,7 @@ func Run() {
 	inputFile := flag.String("input", "", "Path to Telegram JSON export file")
 	batchSize := flag.Int("batch-size", 50, "Number of messages to process in a batch")
 	minMessageLength := flag.Int("min-length", 15, "Minimum character length for a message to be imported")
+	maxMessages := flag.Int("max-messages", 0, "Maximum number of messages to import (0 = no limit)")
 	flag.Parse()
 
 	if *inputFile == "" {
@@ -105,6 +106,12 @@ func Run() {
 	}
 
 	log.Printf("Successfully parsed %d messages from chat '%s' (ID: %d)", len(export.Messages), export.Name, export.ChatID)
+
+	// Apply max messages limit if specified
+	if *maxMessages > 0 && len(export.Messages) > *maxMessages {
+		log.Printf("Limiting to first %d messages (out of %d total)", *maxMessages, len(export.Messages))
+		export.Messages = export.Messages[:*maxMessages]
+	}
 
 	// Initialize OpenAI client
 	openaiToken := os.Getenv("GPT_TOKEN")
