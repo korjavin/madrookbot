@@ -5,6 +5,7 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/sashabaranov/go-openai v1.41.2
+	github.com/qdrant/go-client v1.15.2
 	golang.org/x/net v0.44.0
 )
 
