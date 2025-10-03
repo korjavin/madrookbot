@@ -36,9 +36,14 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git checkout -B deploy
+          # Replace 'build: .' with image tag for madrookbot service
+          sed -i '/madrookbot:/,/container_name: madrookbot/ s|build: \.|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}|' docker-compose.yml
+          # Replace 'build: .' with image tag for tool-api service
+          sed -i '/tool-api:/,/container_name: tool-api/ s|build: \.|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}|' docker-compose.yml
+          # Also handle case where image already exists (update the tag)
           sed -i "s|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:.*|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}|g" docker-compose.yml
           git add docker-compose.yml
-          git commit -m "ci: Update image tag to ${{ github.sha }}"
+          git commit -m "ci: Update image tag to ${{ github.sha }}" || echo "No changes to commit"
           git push origin deploy --force
 
       - name: Trigger Portainer Redeploy Webhook
