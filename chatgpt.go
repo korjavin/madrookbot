@@ -127,7 +127,28 @@ func getGPTAnswerWithHistory(msg, systemPrompt string, history []ConversationNod
 		Content: msg,
 	})
 
-	log.Printf("[DEBUG] Sending GPT request with %d messages in context", len(messages))
+	// Define the search_chat_history tool
+	tools := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "search_chat_history",
+				Description: "Searches the private Telegram group chat history to find relevant messages based on a user's query. Use this to answer questions about past conversations, find specific information, or recall what someone said.",
+				Parameters: map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"query": map[string]interface{}{
+							"type":        "string",
+							"description": "A detailed semantic search query. Should be a full question or statement that captures the user's intent, e.g., 'What was the final decision on the Q4 marketing budget?'",
+						},
+					},
+					"required": []string{"query"},
+				},
+			},
+		},
+	}
+
+	log.Printf("[DEBUG] Sending GPT request with %d messages in context and tool support", len(messages))
 
 	resp, err := client.CreateChatCompletion(
 		ctx,
@@ -136,6 +157,7 @@ func getGPTAnswerWithHistory(msg, systemPrompt string, history []ConversationNod
 			Temperature: getTemperature(),
 			ServiceTier: "flex",
 			Messages:    messages,
+			Tools:       tools,
 		},
 	)
 	if err != nil {
@@ -143,9 +165,14 @@ func getGPTAnswerWithHistory(msg, systemPrompt string, history []ConversationNod
 		return "", err
 	}
 
-	if len(resp.Choices) > 0 {
-		return resp.Choices[0].Message.Content, nil
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no answer")
 	}
 
-	return "", fmt.Errorf("no answer")
+	// Check if the model wants to call a tool
+	if len(resp.Choices[0].Message.ToolCalls) > 0 {
+		return handleToolCalls(ctx, messages, resp.Choices[0].Message, tools)
+	}
+
+	return resp.Choices[0].Message.Content, nil
 }

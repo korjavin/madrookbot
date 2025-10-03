@@ -29,6 +29,7 @@ services:
       - MESSAGE_COMBINE_WINDOW=${MESSAGE_COMBINE_WINDOW:-90}
       - QDRANT_HOST=${QDRANT_HOST:-qdrant}
       - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL}
+      - TOOL_API_URL=${TOOL_API_URL:-http://tool-api:8081}
     volumes:
       - ./data:/bot/data
     restart: unless-stopped
