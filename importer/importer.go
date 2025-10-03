@@ -207,7 +207,6 @@ func Run() {
 		log.Printf("Getting embeddings for %d messages...", len(textsToEmbed))
 
 		embeddingCtx, embeddingCancel := context.WithTimeout(context.Background(), time.Minute)
-		defer embeddingCancel()
 
 		resp, err := openaiClient.CreateEmbeddings(
 			embeddingCtx,
@@ -216,6 +215,7 @@ func Run() {
 				Model: openai.AdaEmbeddingV2,
 			},
 		)
+		embeddingCancel()
 		if err != nil {
 			log.Printf("Error getting embeddings for batch %d-%d: %v", i, end-1, err)
 			continue
@@ -251,7 +251,6 @@ func Run() {
 		}
 
 		upsertCtx, upsertCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer upsertCancel()
 
 		wait := true
 		_, err = pointsClient.Upsert(upsertCtx, &qdrant.UpsertPoints{
@@ -259,6 +258,7 @@ func Run() {
 			Wait:           &wait,
 			Points:         points,
 		})
+		upsertCancel()
 
 		if err != nil {
 			log.Printf("Error upserting points for batch %d-%d: %v", i, end-1, err)
