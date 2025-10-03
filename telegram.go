@@ -35,6 +35,9 @@ func botGo() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
+	// Start class scheduler
+	startClassScheduler(bot)
+
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
@@ -146,6 +149,110 @@ Use "read: <text>" to convert text to speech`
 		// Handle /stat command
 		if strings.HasPrefix(strings.ToUpper(text), "/STAT") {
 			handleStatCommand(bot, messg)
+			continue
+		}
+
+		// Handle /class command (owner only)
+		if strings.HasPrefix(strings.ToUpper(text), "/CLASS ") {
+			if !isOwner(messg.From.ID) {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Only the bot owner can create classes.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			description := strings.TrimSpace(text[7:]) // Remove "/class "
+			description = sanitizeClassDescription(description)
+
+			if description == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Please provide a class description. Usage: /class <description>")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if there's already an active class
+			existingClass, err := getActiveClass()
+			if err != nil {
+				log.Printf("[ERROR] Failed to check for active class: %v", err)
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Error checking for existing classes.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			if existingClass != nil && !existingClass.Unpinned {
+				msg := tgbotapi.NewMessage(messg.Chat.ID,
+					fmt.Sprintf("There's already an active class scheduled: %s\nUse /cancelclass first if you want to replace it.",
+						existingClass.Description))
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			class, err := createClass(description)
+			if err != nil {
+				log.Printf("[ERROR] Failed to create class: %v", err)
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Failed to create class. Please try again.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			berlin, _ := time.LoadLocation("Europe/Berlin")
+			msg := tgbotapi.NewMessage(messg.Chat.ID,
+				fmt.Sprintf("✅ Class created!\n\nTopic: %s\nScheduled: %s\n\nAnnouncement will be posted soon.",
+					class.Description,
+					class.ScheduledTime.In(berlin).Format("Monday, January 2 at 15:04 MST")))
+			msg.ReplyToMessageID = messg.MessageID
+			bot.Send(msg)
+			continue
+		}
+
+		// Handle /cancelclass command (owner only)
+		if strings.HasPrefix(strings.ToUpper(text), "/CANCELCLASS") {
+			if !isOwner(messg.From.ID) {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Only the bot owner can cancel classes.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			class, err := getActiveClass()
+			if err != nil {
+				log.Printf("[ERROR] Failed to get active class: %v", err)
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Error checking for active classes.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			if class == nil {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "No active class to cancel.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			err = cancelClass(class.ID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to cancel class: %v", err)
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Failed to cancel class.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Unpin the announcement if it was posted
+			if class.AnnouncementMessageID > 0 && !class.Unpinned {
+				groupID, _ := getClassGroupID()
+				unpinMessage(bot, groupID, class.AnnouncementMessageID)
+			}
+
+			msg := tgbotapi.NewMessage(messg.Chat.ID,
+				fmt.Sprintf("❌ Class cancelled: %s", class.Description))
+			msg.ReplyToMessageID = messg.MessageID
+			bot.Send(msg)
 			continue
 		}
 		if strings.HasPrefix(strings.ToUpper(text), "/IDIOM") {

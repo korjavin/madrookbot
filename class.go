@@ -1,0 +1,230 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"time"
+)
+
+// Class represents a scheduled class
+type Class struct {
+	ID                   int
+	Description          string
+	ScheduledTime        time.Time
+	AnnouncementMessageID int
+	AnnouncementPosted   bool
+	Reminder6hSent       bool
+	Reminder1hSent       bool
+	Unpinned             bool
+	CreatedAt            time.Time
+	Cancelled            bool
+}
+
+// initClassesTable creates the classes table if it doesn't exist
+func initClassesTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS classes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		description TEXT NOT NULL,
+		scheduled_time DATETIME NOT NULL,
+		announcement_message_id INTEGER DEFAULT 0,
+		announcement_posted BOOLEAN DEFAULT 0,
+		reminder_6h_sent BOOLEAN DEFAULT 0,
+		reminder_1h_sent BOOLEAN DEFAULT 0,
+		unpinned BOOLEAN DEFAULT 0,
+		created_at DATETIME NOT NULL,
+		cancelled BOOLEAN DEFAULT 0
+	)`
+
+	_, err := db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("failed to create classes table: %v", err)
+	}
+
+	log.Printf("[INFO] Classes table initialized")
+	return nil
+}
+
+// getNextSunday returns the next Sunday at 19:00 Berlin time
+// If today is Sunday and it's before 19:00, returns today at 19:00
+func getNextSunday() time.Time {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		log.Printf("[ERROR] Failed to load Berlin timezone: %v", err)
+		berlin = time.UTC
+	}
+
+	now := time.Now().In(berlin)
+
+	// Set to 19:00 today
+	classTime := time.Date(now.Year(), now.Month(), now.Day(), 19, 0, 0, 0, berlin)
+
+	// If today is Sunday and it's before 19:00, use today
+	if now.Weekday() == time.Sunday && now.Before(classTime) {
+		return classTime
+	}
+
+	// Otherwise, find next Sunday
+	daysUntilSunday := (7 - int(now.Weekday())) % 7
+	if daysUntilSunday == 0 {
+		daysUntilSunday = 7
+	}
+
+	nextSunday := now.AddDate(0, 0, daysUntilSunday)
+	return time.Date(nextSunday.Year(), nextSunday.Month(), nextSunday.Day(), 19, 0, 0, 0, berlin)
+}
+
+// createClass creates a new class and stores it in the database
+func createClass(description string) (*Class, error) {
+	scheduledTime := getNextSunday()
+	now := time.Now()
+
+	query := `
+		INSERT INTO classes (description, scheduled_time, created_at, cancelled)
+		VALUES (?, ?, ?, 0)
+	`
+
+	result, err := db.Exec(query, description, scheduledTime, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert class: %v", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get class ID: %v", err)
+	}
+
+	class := &Class{
+		ID:            int(id),
+		Description:   description,
+		ScheduledTime: scheduledTime,
+		CreatedAt:     now,
+		Cancelled:     false,
+	}
+
+	log.Printf("[CLASS] Created class ID=%d, description='%s', scheduled=%s",
+		id, description, scheduledTime.Format("2006-01-02 15:04 MST"))
+
+	return class, nil
+}
+
+// getActiveClass returns the current active (non-cancelled) class
+func getActiveClass() (*Class, error) {
+	query := `
+		SELECT id, description, scheduled_time, announcement_message_id,
+		       announcement_posted, reminder_6h_sent, reminder_1h_sent,
+		       unpinned, created_at, cancelled
+		FROM classes
+		WHERE cancelled = 0
+		ORDER BY scheduled_time DESC
+		LIMIT 1
+	`
+
+	var class Class
+	err := db.QueryRow(query).Scan(
+		&class.ID,
+		&class.Description,
+		&class.ScheduledTime,
+		&class.AnnouncementMessageID,
+		&class.AnnouncementPosted,
+		&class.Reminder6hSent,
+		&class.Reminder1hSent,
+		&class.Unpinned,
+		&class.CreatedAt,
+		&class.Cancelled,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active class: %v", err)
+	}
+
+	return &class, nil
+}
+
+// cancelClass marks a class as cancelled
+func cancelClass(classID int) error {
+	query := `UPDATE classes SET cancelled = 1 WHERE id = ?`
+	_, err := db.Exec(query, classID)
+	if err != nil {
+		return fmt.Errorf("failed to cancel class: %v", err)
+	}
+
+	log.Printf("[CLASS] Cancelled class ID=%d", classID)
+	return nil
+}
+
+// updateClassAnnouncementPosted marks the announcement as posted
+func updateClassAnnouncementPosted(classID int, messageID int) error {
+	query := `UPDATE classes SET announcement_posted = 1, announcement_message_id = ? WHERE id = ?`
+	_, err := db.Exec(query, messageID, classID)
+	if err != nil {
+		return fmt.Errorf("failed to update announcement posted: %v", err)
+	}
+
+	log.Printf("[CLASS] Marked announcement posted for class ID=%d, messageID=%d", classID, messageID)
+	return nil
+}
+
+// updateClassReminder6hSent marks the 6h reminder as sent
+func updateClassReminder6hSent(classID int) error {
+	query := `UPDATE classes SET reminder_6h_sent = 1 WHERE id = ?`
+	_, err := db.Exec(query, classID)
+	if err != nil {
+		return fmt.Errorf("failed to update 6h reminder: %v", err)
+	}
+
+	log.Printf("[CLASS] Marked 6h reminder sent for class ID=%d", classID)
+	return nil
+}
+
+// updateClassReminder1hSent marks the 1h reminder as sent
+func updateClassReminder1hSent(classID int) error {
+	query := `UPDATE classes SET reminder_1h_sent = 1 WHERE id = ?`
+	_, err := db.Exec(query, classID)
+	if err != nil {
+		return fmt.Errorf("failed to update 1h reminder: %v", err)
+	}
+
+	log.Printf("[CLASS] Marked 1h reminder sent for class ID=%d", classID)
+	return nil
+}
+
+// updateClassUnpinned marks the class message as unpinned
+func updateClassUnpinned(classID int) error {
+	query := `UPDATE classes SET unpinned = 1 WHERE id = ?`
+	_, err := db.Exec(query, classID)
+	if err != nil {
+		return fmt.Errorf("failed to update unpinned status: %v", err)
+	}
+
+	log.Printf("[CLASS] Marked class unpinned for ID=%d", classID)
+	return nil
+}
+
+// formatClassTimeWithTimezones formats the class time in multiple timezones
+func formatClassTimeWithTimezones(classTime time.Time) string {
+	timezones := map[string]string{
+		"Berlin": "Europe/Berlin",
+		"Egypt":  "Africa/Cairo",
+		"India":  "Asia/Kolkata",
+		"Iran":   "Asia/Tehran",
+	}
+
+	var result string
+	for name, tz := range timezones {
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			log.Printf("[WARN] Failed to load timezone %s: %v", tz, err)
+			continue
+		}
+		localTime := classTime.In(loc)
+		result += fmt.Sprintf("🕐 %s: %s\n", name, localTime.Format("Monday, January 2 at 15:04 MST"))
+	}
+
+	return result
+}

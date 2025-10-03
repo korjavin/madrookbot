@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -24,6 +23,12 @@ func main() {
 	err = initActivityDatabase()
 	if err != nil {
 		log.Printf("Error initializing activity database: %v", err)
+	}
+
+	// Initialize classes table
+	err = initClassesTable()
+	if err != nil {
+		log.Printf("Error initializing classes table: %v", err)
 	}
 
 	if os.Getenv("GPT_TOKEN") != "" {
@@ -49,6 +54,7 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("[INFO] Shutdown signal received")
+		stopClassScheduler()
 		SaveConversationsOnShutdown()
 		if db != nil {
 			db.Close()
@@ -63,34 +69,17 @@ func main() {
 	botGo()
 }
 
-// getClassGroupID returns the Telegram group ID where the class is held
-func getClassGroupID() (int64, error) {
-	groupIDStr := os.Getenv("CLASS_GROUP_ID")
-	if groupIDStr == "" {
-		return 0, fmt.Errorf("CLASS_GROUP_ID environment variable not set")
+// getEnvInt64 is a helper function to get int64 from environment variable
+func getEnvInt64(key string) (int64, error) {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return 0, fmt.Errorf("%s environment variable not set", key)
 	}
 
-	groupID, err := strconv.ParseInt(groupIDStr, 10, 64)
+	value, err := strconv.ParseInt(valueStr, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("invalid CLASS_GROUP_ID: %v", err)
+		return 0, fmt.Errorf("invalid %s: %v", key, err)
 	}
 
-	return groupID, nil
-}
-
-// getOwnerID returns the Telegram owner ID from the OWNER_ID environment variable
-func getOwnerID() (int, error) {
-	ownerIDStr := os.Getenv("OWNER_ID")
-	if ownerIDStr == "" {
-		// Fallback to default ID if not set
-		return 0, errors.New("owner is not set")
-	}
-
-	ownerID, err := strconv.Atoi(ownerIDStr)
-	if err != nil {
-		log.Printf("Invalid OWNER_ID environment variable: %v", err)
-		return 0, err
-	}
-
-	return ownerID, nil
+	return value, nil
 }
