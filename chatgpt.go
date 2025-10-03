@@ -53,7 +53,7 @@ func getSearchChatHistoryTool() openai.Tool {
 				"properties": map[string]interface{}{
 					"query": map[string]interface{}{
 						"type":        "string",
-						"description": "A detailed semantic search query. Should be a full question or statement that captures the user's intent, e.g., 'What was the final decision on the Q4 marketing budget?'",
+						"description": "A detailed semantic search query. Should be a set of keywords the user's intent, e.g., 'Marketing budget, last quarter, results'",
 					},
 				},
 				"required": []string{"query"},
