@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"os"
 
-	openai "github.com/sashabaranov/go-openai"
 	"github.com/qdrant/go-client/qdrant"
+	openai "github.com/sashabaranov/go-openai"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -85,7 +85,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.TopK == 0 {
-		req.TopK = 3
+		req.TopK = 7
 	}
 
 	log.Printf("[INFO] Received search query: '%s', top_k: %d", req.Query, req.TopK)
