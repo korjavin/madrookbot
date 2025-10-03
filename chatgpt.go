@@ -41,24 +41,54 @@ func getTemperature() float32 {
 	return float32(temp)
 }
 
+// getSearchChatHistoryTool returns the search_chat_history tool definition
+func getSearchChatHistoryTool() openai.Tool {
+	return openai.Tool{
+		Type: openai.ToolTypeFunction,
+		Function: &openai.FunctionDefinition{
+			Name:        "search_chat_history",
+			Description: "Searches the private Telegram group chat history to find relevant messages based on a user's query. Use this to answer questions about past conversations, find specific information, or recall what someone said.",
+			Parameters: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"query": map[string]interface{}{
+						"type":        "string",
+						"description": "A detailed semantic search query. Should be a full question or statement that captures the user's intent, e.g., 'What was the final decision on the Q4 marketing budget?'",
+					},
+				},
+				"required": []string{"query"},
+			},
+		},
+	}
+}
+
 func getGPTAnswerWithSystem(msg, system string) (string, error) {
+	return getGPTAnswerWithSystemAndTools(msg, system, nil)
+}
+
+// getGPTAnswerWithSystemAndTools allows passing tools for specific use cases
+func getGPTAnswerWithSystemAndTools(msg, system string, tools []openai.Tool) (string, error) {
 	ctx := context.Background()
+
+	messages := []openai.ChatCompletionMessage{
+		{
+			Role:    openai.ChatMessageRoleSystem,
+			Content: system,
+		},
+		{
+			Role:    openai.ChatMessageRoleUser,
+			Content: msg,
+		},
+	}
+
 	resp, err := client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
 			Model:       os.Getenv("GPT_MODEL"),
 			Temperature: getTemperature(),
 			ServiceTier: "flex",
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: system,
-				},
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: msg,
-				},
-			},
+			Messages:    messages,
+			Tools:       tools,
 		},
 	)
 	if err != nil {
@@ -66,11 +96,16 @@ func getGPTAnswerWithSystem(msg, system string) (string, error) {
 		return "", err
 	}
 
-	if len(resp.Choices) > 0 {
-		return resp.Choices[0].Message.Content, nil
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no answer")
 	}
 
-	return "", fmt.Errorf("no answer")
+	// Check if the model wants to call a tool
+	if len(resp.Choices[0].Message.ToolCalls) > 0 && tools != nil {
+		return handleToolCalls(ctx, messages, resp.Choices[0].Message, tools)
+	}
+
+	return resp.Choices[0].Message.Content, nil
 }
 
 func getEmbedding(text string) ([]float32, error) {
@@ -127,26 +162,7 @@ func getGPTAnswerWithHistory(msg, systemPrompt string, history []ConversationNod
 		Content: msg,
 	})
 
-	// Define the search_chat_history tool
-	tools := []openai.Tool{
-		{
-			Type: openai.ToolTypeFunction,
-			Function: &openai.FunctionDefinition{
-				Name:        "search_chat_history",
-				Description: "Searches the private Telegram group chat history to find relevant messages based on a user's query. Use this to answer questions about past conversations, find specific information, or recall what someone said.",
-				Parameters: map[string]interface{}{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"query": map[string]interface{}{
-							"type":        "string",
-							"description": "A detailed semantic search query. Should be a full question or statement that captures the user's intent, e.g., 'What was the final decision on the Q4 marketing budget?'",
-						},
-					},
-					"required": []string{"query"},
-				},
-			},
-		},
-	}
+	tools := []openai.Tool{getSearchChatHistoryTool()}
 
 	log.Printf("[DEBUG] Sending GPT request with %d messages in context and tool support", len(messages))
 

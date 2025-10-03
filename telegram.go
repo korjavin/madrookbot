@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type class struct {
@@ -369,7 +370,16 @@ Use "read: <text>" to convert text to speech`
 						systemPrompt = "You are a helpful assistant. Provide clear and concise answers."
 					}
 
-					txt, err := getGPTAnswerWithSystem(question, systemPrompt)
+					// Check if we should enable memory tool for this chat/user
+					var txt string
+					var err error
+					if shouldEnableMemoryTool(messg.Chat.ID, messg.From.ID) {
+						log.Printf("[INFO] Enabling memory search tool for chat %d, user %d", messg.Chat.ID, messg.From.ID)
+						tools := []openai.Tool{getSearchChatHistoryTool()}
+						txt, err = getGPTAnswerWithSystemAndTools(question, systemPrompt, tools)
+					} else {
+						txt, err = getGPTAnswerWithSystem(question, systemPrompt)
+					}
 					if err != nil {
 						log.Printf("GPT error: %v", err)
 						txt = "Sorry, I couldn't process your question."
