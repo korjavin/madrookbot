@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   madrookbot:
-    build: .
+    image: ghcr.io/korjavin/madrookbot:latest
     container_name: madrookbot
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
@@ -41,7 +41,7 @@ services:
       - ./qdrant_storage:/qdrant/storage
 
   tool-api:
-    build: .
+    image: ghcr.io/korjavin/madrookbot:latest
     container_name: tool-api
     restart: unless-stopped
     environment:
