@@ -1,8 +1,8 @@
 FROM golang:1.24
 WORKDIR /go/src/app
 COPY . .
-RUN go build -mod=vendor -o /tmp/madrookbot
-RUN go build -mod=vendor -o /tmp/tool-api -tags toolapi .
+RUN go build -mod=vendor -o /tmp/madrookbot .
+RUN go build -mod=vendor -o /tmp/tool-api ./cmd/tool-api
 
 FROM debian:testing
 RUN apt-get update && apt-get -y install ca-certificates

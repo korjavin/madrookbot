@@ -1,5 +1,3 @@
-//go:build !toolapi
-
 package main
 
 import (
