@@ -56,7 +56,7 @@ func initQdrantClient() error {
 	if qdrantHost == "" {
 		qdrantHost = "localhost"
 	}
-	qdrantPort := 6333 // Default gRPC port
+	qdrantPort := 6334 // Default Qdrant gRPC port
 
 	addr := fmt.Sprintf("%s:%d", qdrantHost, qdrantPort)
 	log.Printf("[INFO] Connecting to Qdrant at %s", addr)
