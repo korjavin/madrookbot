@@ -7,9 +7,16 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+
+	"github.com/korjavin/madrookbot/importer"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "import" {
+		importer.Run()
+		return
+	}
+
 	// Initialize media suggestions database
 	err := initMediaSuggestions()
 	if err != nil {
