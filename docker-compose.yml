@@ -2,8 +2,7 @@ version: "3.8"
 
 services:
   madrookbot:
-    # The image tag will be replaced by the GitHub Actions workflow
-    image: ghcr.io/korjavin/madrookbot:latest
+    build: .
     container_name: madrookbot
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
@@ -42,11 +41,17 @@ services:
       - ./qdrant_storage:/qdrant/storage
 
   tool-api:
-    image: python:3.10-slim
+    build: .
     container_name: tool-api
     restart: unless-stopped
     environment:
-      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL}
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-    command: tail -f /dev/null
+      - GPT_TOKEN=${GPT_TOKEN}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-ada-002}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-telegram_messages}
+      - TOOL_API_PORT=${TOOL_API_PORT:-8081}
+    command: ["/bot/tool-api"]
+    ports:
+      - "8081:8081"
+    depends_on:
+      - qdrant
