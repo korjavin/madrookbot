@@ -73,18 +73,42 @@ The bot helps manage a weekly discussion group by:
 - `ELEVENLABS_VOICE_NAME` - The name of the ElevenLabs voice to use
 - `ELEVENLABS_MODEL_ID` - The ID of the ElevenLabs model to use
 
+### Memory / Context Tool (optional)
+- `OPENAI_EMBEDDING_MODEL` - The model to use for generating message embeddings (e.g., `text-embedding-3-small`).
+
 ## Running
 
-### With Docker
+The recommended way to run the application is with `docker-compose`, which manages the bot and the Qdrant vector database.
+
+### With Docker Compose
+
+1.  **Environment File:**
+    You will need to create a `.env` file in the project root to store your secrets and configuration. You can do this by copying the provided example file:
+    ```bash
+    cp .env.example .env
+    ```
+    Then, edit the `.env` file with your specific credentials (like `BOT_TOKEN`, `GPT_TOKEN`, etc.).
+
+2.  **Start Services:**
+    ```bash
+    docker-compose up --build -d
+    ```
+    This command builds the images if they don't exist and starts all services (`madrookbot`, `qdrant`, `tool-api`) in the background.
+
+3.  **View Logs:**
+    ```bash
+    docker-compose logs -f
+    ```
+
+### With Docker (Manual)
+If you prefer to run only the bot container without the associated services:
 ```bash
 docker build -t madrookbot .
 docker run \
   -e BOT_TOKEN=your_token \
   -e OWNER_ID=your_id \
   -e CLASS_GROUP_ID=group_id \
-  -e ELEVENLABS_API_KEY=your_elevenlabs_key \
-  -e ELEVENLABS_VOICE_NAME=your_elevenlabs_voice_name \
-  -e ELEVENLABS_MODEL_ID=your_elevenlabs_model_id \
+  # ... other environment variables
   madrookbot
 ```
 

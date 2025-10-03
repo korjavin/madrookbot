@@ -28,3 +28,21 @@ services:
     volumes:
       - ./data:/bot/data
     restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+
+  tool-api:
+    image: python:3.10-slim
+    container_name: tool-api
+    restart: unless-stopped
+    environment:
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL}
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
