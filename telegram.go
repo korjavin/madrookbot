@@ -39,12 +39,12 @@ func botGo() {
 	// Start class scheduler
 	startClassScheduler(bot)
 
-	u := tgbotapi.NewUpdate(0)
+	u := tgbotapi.NewUpdate(-1) // Use -1 to get the latest updates and skip old ones
 	u.Timeout = 60
 	// Enable message_reaction updates to track RSVPs
 	u.AllowedUpdates = []string{"message", "edited_message", "callback_query", "message_reaction"}
 
-	log.Printf("[DEBUG] Requesting updates with AllowedUpdates: %v", u.AllowedUpdates)
+	log.Printf("[DEBUG] Requesting updates with offset %d and AllowedUpdates: %v", u.Offset, u.AllowedUpdates)
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
