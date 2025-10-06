@@ -3,18 +3,17 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/url"
 	"strconv"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 // pinMessage pins a message in a chat
 func pinMessage(bot *tgbotapi.BotAPI, chatID int64, messageID int) error {
-	params := url.Values{}
-	params.Set("chat_id", strconv.FormatInt(chatID, 10))
-	params.Set("message_id", strconv.Itoa(messageID))
-	params.Set("disable_notification", "false")
+	params := make(tgbotapi.Params)
+	params["chat_id"] = strconv.FormatInt(chatID, 10)
+	params["message_id"] = strconv.Itoa(messageID)
+	params["disable_notification"] = "false"
 
 	_, err := bot.MakeRequest("pinChatMessage", params)
 	if err != nil {
@@ -27,9 +26,9 @@ func pinMessage(bot *tgbotapi.BotAPI, chatID int64, messageID int) error {
 
 // unpinMessage unpins a specific message in a chat
 func unpinMessage(bot *tgbotapi.BotAPI, chatID int64, messageID int) error {
-	params := url.Values{}
-	params.Set("chat_id", strconv.FormatInt(chatID, 10))
-	params.Set("message_id", strconv.Itoa(messageID))
+	params := make(tgbotapi.Params)
+	params["chat_id"] = strconv.FormatInt(chatID, 10)
+	params["message_id"] = strconv.Itoa(messageID)
 
 	_, err := bot.MakeRequest("unpinChatMessage", params)
 	if err != nil {

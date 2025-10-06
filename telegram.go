@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -8,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -41,14 +42,27 @@ func botGo() {
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
+	// Enable message_reaction updates to track RSVPs
+	u.AllowedUpdates = []string{"message", "edited_message", "callback_query", "message_reaction"}
 
-	updates, err := bot.GetUpdatesChan(u)
-	if err != nil {
-		log.Printf("[ERROR] getting update channel %v\n", err)
-	}
+	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
+		// Handle message reactions (not parsed by library, need to check raw JSON)
+		// Check if this is a message_reaction update by seeing if it has the typical message fields
 		if update.Message == nil && update.EditedMessage == nil && update.CallbackQuery == nil {
+			// This might be a message_reaction update - try to handle it
+			// We need to get the raw JSON from the update
+			// Since the library doesn't expose raw JSON, we'll need to marshal and check
+			rawJSON, err := json.Marshal(update)
+			if err == nil {
+				var checkReaction struct {
+					MessageReaction interface{} `json:"message_reaction"`
+				}
+				if err := json.Unmarshal(rawJSON, &checkReaction); err == nil && checkReaction.MessageReaction != nil {
+					handleMessageReaction(rawJSON)
+				}
+			}
 			continue
 		}
 		var text string
@@ -329,7 +343,7 @@ Use "read: <text>" to convert text to speech`
 						MessageID:    messg.MessageID,
 						ParentID:     parentMessageID,
 						ChatID:       messg.Chat.ID,
-						UserID:       messg.From.ID,
+						UserID:       int(messg.From.ID),
 						Text:         text,
 						Role:         "user",
 						SystemPrompt: systemPrompt,
@@ -341,7 +355,7 @@ Use "read: <text>" to convert text to speech`
 						MessageID:    sentMsg.MessageID,
 						ParentID:     messg.MessageID,
 						ChatID:       messg.Chat.ID,
-						UserID:       bot.Self.ID,
+						UserID:       int(bot.Self.ID),
 						Text:         txt,
 						Role:         "assistant",
 						SystemPrompt: systemPrompt,
@@ -396,7 +410,7 @@ Use "read: <text>" to convert text to speech`
 							MessageID:    messg.MessageID,
 							ParentID:     0, // Root message
 							ChatID:       messg.Chat.ID,
-							UserID:       messg.From.ID,
+							UserID:       int(messg.From.ID),
 							Text:         question,
 							Role:         "user",
 							SystemPrompt: systemPrompt,
@@ -407,7 +421,7 @@ Use "read: <text>" to convert text to speech`
 							MessageID:    sentMsg.MessageID,
 							ParentID:     messg.MessageID,
 							ChatID:       messg.Chat.ID,
-							UserID:       bot.Self.ID,
+							UserID:       int(bot.Self.ID),
 							Text:         txt,
 							Role:         "assistant",
 							SystemPrompt: systemPrompt,
@@ -457,7 +471,7 @@ Use "read: <text>" to convert text to speech`
 						errorMsg.ReplyToMessageID = messg.MessageID
 						bot.Send(errorMsg)
 					} else {
-						photoMsg := tgbotapi.NewPhotoUpload(messg.Chat.ID, tgbotapi.FileBytes{
+						photoMsg := tgbotapi.NewPhoto(messg.Chat.ID, tgbotapi.FileBytes{
 							Name:  "generated_image.png",
 							Bytes: imageData.Bytes(),
 						})
@@ -491,9 +505,8 @@ Use "read: <text>" to convert text to speech`
 						file := tgbotapi.FileReader{
 							Name:   "filename",
 							Reader: res,
-							Size:   -1,
 						}
-						msg := tgbotapi.NewVoiceUpload(messg.Chat.ID, file)
+						msg := tgbotapi.NewVoice(messg.Chat.ID, file)
 						msg.ReplyToMessageID = messg.MessageID
 						_, err = bot.Send(msg)
 

@@ -40,9 +40,6 @@ github.com/PuerkitoBio/goquery
 # github.com/andybalholm/cascadia v0.0.0-20161224141413-349dd0209470
 ## explicit
 github.com/andybalholm/cascadia
-# github.com/davecgh/go-spew v1.1.1
-## explicit
-github.com/davecgh/go-spew/spew
 # github.com/felixge/httpsnoop v1.0.4
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
@@ -53,9 +50,9 @@ github.com/go-logr/logr/funcr
 # github.com/go-logr/stdr v1.2.2
 ## explicit; go 1.16
 github.com/go-logr/stdr
-# github.com/go-telegram-bot-api/telegram-bot-api v0.0.0-20161125055035-0a57807db79e
-## explicit
-github.com/go-telegram-bot-api/telegram-bot-api
+# github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
+## explicit; go 1.16
+github.com/go-telegram-bot-api/telegram-bot-api/v5
 # github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 ## explicit
 github.com/golang/freetype/raster
@@ -108,9 +105,6 @@ github.com/googleapis/gax-go/v2/internallog/internal
 # github.com/mattn/go-sqlite3 v1.14.17
 ## explicit; go 1.16
 github.com/mattn/go-sqlite3
-# github.com/pmezard/go-difflib v1.0.0
-## explicit
-github.com/pmezard/go-difflib/difflib
 # github.com/qdrant/go-client v1.15.2
 ## explicit; go 1.22.2
 github.com/qdrant/go-client/qdrant
@@ -121,11 +115,6 @@ github.com/sashabaranov/go-openai/internal
 github.com/sashabaranov/go-openai/jsonschema
 # github.com/stretchr/testify v1.11.1
 ## explicit; go 1.17
-github.com/stretchr/testify/assert
-github.com/stretchr/testify/assert/yaml
-# github.com/technoweenie/multipartstreamer v1.0.1
-## explicit
-github.com/technoweenie/multipartstreamer
 # github.com/wcharczuk/go-chart/v2 v2.1.2
 ## explicit; go 1.15
 github.com/wcharczuk/go-chart/v2
@@ -364,6 +353,3 @@ google.golang.org/protobuf/types/known/emptypb
 google.golang.org/protobuf/types/known/fieldmaskpb
 google.golang.org/protobuf/types/known/structpb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/yaml.v3 v3.0.1
-## explicit
-gopkg.in/yaml.v3

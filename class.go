@@ -42,7 +42,25 @@ func initClassesTable() error {
 		return fmt.Errorf("failed to create classes table: %v", err)
 	}
 
-	log.Printf("[INFO] Classes table initialized")
+	// Create RSVPs table
+	rsvpQuery := `
+	CREATE TABLE IF NOT EXISTS class_rsvps (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		class_id INTEGER NOT NULL,
+		message_id INTEGER NOT NULL,
+		user_id INTEGER NOT NULL,
+		username TEXT,
+		reacted_at DATETIME NOT NULL,
+		UNIQUE(class_id, message_id, user_id),
+		FOREIGN KEY(class_id) REFERENCES classes(id) ON DELETE CASCADE
+	)`
+
+	_, err = db.Exec(rsvpQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create class_rsvps table: %v", err)
+	}
+
+	log.Printf("[INFO] Classes and RSVPs tables initialized")
 	return nil
 }
 

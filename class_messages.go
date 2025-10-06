@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"strings"
@@ -129,18 +130,76 @@ This is your last chance to join! See you soon! 🎓⏰`, class.Description), ni
 	return reminder, nil
 }
 
-// countRSVPs counts the number of reactions on a message
+// countRSVPs counts the number of reactions on a message by querying the database
 func countRSVPs(chatID int64, messageID int) int {
-	// Note: Telegram Bot API doesn't provide a direct way to count reactions
-	// This is a placeholder - in practice, we'd need to track reactions through updates
-	// or use a different approach
+	// Get the active class with this message ID
+	query := `
+		SELECT COUNT(DISTINCT r.user_id)
+		FROM class_rsvps r
+		JOIN classes c ON r.class_id = c.id
+		WHERE c.announcement_message_id = ? AND c.cancelled = 0
+	`
 
-	// For now, return 0 as we can't easily get this info
-	// The bot owner would need to manually check or we'd need to implement
-	// reaction tracking in the update handler
+	var count int
+	err := db.QueryRow(query, messageID).Scan(&count)
+	if err != nil {
+		log.Printf("[ERROR] Failed to count RSVPs for message %d: %v", messageID, err)
+		return 0
+	}
 
-	log.Printf("[WARN] RSVP counting not fully implemented - returning 0")
-	return 0
+	log.Printf("[CLASS] Counted %d RSVPs for message %d", count, messageID)
+	return count
+}
+
+// trackRSVP records an RSVP (reaction) to a class announcement
+func trackRSVP(messageID int, userID int64, username string) error {
+	// First, find the class with this announcement message ID
+	var classID int
+	err := db.QueryRow(`
+		SELECT id FROM classes
+		WHERE announcement_message_id = ? AND cancelled = 0
+		LIMIT 1
+	`, messageID).Scan(&classID)
+
+	if err == sql.ErrNoRows {
+		// Not a class announcement message, ignore
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to find class for message %d: %v", messageID, err)
+	}
+
+	// Insert or update RSVP
+	_, err = db.Exec(`
+		INSERT OR REPLACE INTO class_rsvps (class_id, message_id, user_id, username, reacted_at)
+		VALUES (?, ?, ?, ?, datetime('now'))
+	`, classID, messageID, userID, username)
+
+	if err != nil {
+		return fmt.Errorf("failed to track RSVP: %v", err)
+	}
+
+	log.Printf("[CLASS] Tracked RSVP from user %s (ID: %d) for class %d", username, userID, classID)
+	return nil
+}
+
+// removeRSVP removes an RSVP when a user removes their reaction
+func removeRSVP(messageID int, userID int64) error {
+	result, err := db.Exec(`
+		DELETE FROM class_rsvps
+		WHERE message_id = ? AND user_id = ?
+	`, messageID, userID)
+
+	if err != nil {
+		return fmt.Errorf("failed to remove RSVP: %v", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows > 0 {
+		log.Printf("[CLASS] Removed RSVP from user ID %d for message %d", userID, messageID)
+	}
+
+	return nil
 }
 
 // shouldSendLowRSVPWarning determines if we should warn about low RSVP count
@@ -154,16 +213,16 @@ func getClassGroupID() (int64, error) {
 }
 
 // getOwnerID returns the owner ID from environment
-func getOwnerID() (int, error) {
+func getOwnerID() (int64, error) {
 	ownerID, err := getEnvInt64("OWNER_ID")
 	if err != nil {
 		return 0, err
 	}
-	return int(ownerID), nil
+	return ownerID, nil
 }
 
 // isOwner checks if the user is the bot owner
-func isOwner(userID int) bool {
+func isOwner(userID int64) bool {
 	ownerID, err := getOwnerID()
 	if err != nil {
 		log.Printf("[ERROR] Failed to get owner ID: %v", err)

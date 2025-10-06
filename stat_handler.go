@@ -5,7 +5,7 @@ import (
 	"log"
 	"sort"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 // handleStatCommand processes the /stat command
@@ -79,7 +79,7 @@ func handleStatCommand(bot *tgbotapi.BotAPI, messg *tgbotapi.Message) {
 	}
 
 	// Send chart as photo
-	photoMsg := tgbotapi.NewPhotoUpload(messg.Chat.ID, tgbotapi.FileBytes{
+	photoMsg := tgbotapi.NewPhoto(messg.Chat.ID, tgbotapi.FileBytes{
 		Name:  "activity_chart.png",
 		Bytes: chartBuffer.Bytes(),
 	})
@@ -111,9 +111,11 @@ func isUserAuthorizedForStats(bot *tgbotapi.BotAPI, messg *tgbotapi.Message) (bo
 	}
 
 	// Check if user is group admin
-	chatConfig := tgbotapi.ChatConfigWithUser{
-		ChatID: messg.Chat.ID,
-		UserID: messg.From.ID,
+	chatConfig := tgbotapi.GetChatMemberConfig{
+		ChatConfigWithUser: tgbotapi.ChatConfigWithUser{
+			ChatID: messg.Chat.ID,
+			UserID: messg.From.ID,
+		},
 	}
 
 	member, err := bot.GetChatMember(chatConfig)
