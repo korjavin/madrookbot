@@ -19,7 +19,8 @@ A Telegram bot for managing group discussions and media suggestions.
   - Generates visual charts with top 10 contributors
   - GPT-powered analysis of activity patterns
   - 6-month data retention
-- Scheduled class management
+- **Class Scheduler System**: Automated system for scheduling and managing online classes.
+- **RAG/MCP Tool**: A Retrieval-Augmented Generation system that gives the bot long-term memory of chat conversations.
 
 ### Media Management
 The bot helps manage a weekly discussion group by:
@@ -38,6 +39,27 @@ The bot helps manage a weekly discussion group by:
    - Unselected media is carried over to next week
    - Media suggestions are removed after 6 weeks if not selected
    - Selected media is announced. The original implementation intended to pin this message, but this is currently disabled due to limitations in the Telegram library being used.
+
+### Class Scheduler System
+The bot features a fully automated system for managing weekly online classes.
+
+- **Automatic Scheduling**: A new class is automatically scheduled for the next Sunday at 19:00 Berlin time when created.
+- **GPT-Powered Announcements**: The bot generates engaging and friendly class announcements using GPT. These are posted with a random delay (1-6 hours) to feel more natural.
+- **RSVP Tracking**: Users can RSVP by reacting to the announcement message. The bot tracks attendance and can send reminders based on the number of participants.
+- **Automated Reminders**:
+    - A 6-hour reminder is sent before the class. If there are fewer than 4 RSVPs, the message has a more urgent tone to encourage sign-ups.
+    - A final 1-hour reminder is sent just before the class starts.
+- **Lifecycle Management**: The announcement message is automatically pinned in the chat and then unpinned 2 hours after the class has finished.
+
+### RAG/MCP (Memory/Context) System
+The bot has a long-term memory of conversations in a dedicated group, implemented as a Retrieval-Augmented Generation (RAG) system. This allows the bot to answer questions about past discussions.
+
+- **Message Ingestion**: The bot listens for messages in a specified group (`MEMORY_GROUP_ID`).
+- **Contextual Message Combining**: To create more meaningful entries, consecutive messages from the same user are automatically combined into a single document if they are sent within a 90-second window.
+- **Vector Embeddings**: The text is converted into a vector embedding using an OpenAI model (e.g., `text-embedding-3-small`).
+- **Vector Storage**: The embedding and the message content (including a link back to the original Telegram message) are stored in a Qdrant vector database.
+- **Contextual Search**: The GPT model can use a `search_chat_history` tool. When a user asks a question about the past, the model can use this tool to search the Qdrant database for the most relevant messages and use them as context to formulate an answer.
+- **Privacy**: Usernames are hashed before being stored.
 
 ## Commands
 
@@ -73,16 +95,17 @@ The bot helps manage a weekly discussion group by:
 - `ELEVENLABS_VOICE_NAME` - The name of the ElevenLabs voice to use
 - `ELEVENLABS_MODEL_ID` - The ID of the ElevenLabs model to use
 
-### Memory / Context Tool (optional)
+### RAG/MCP (Memory/Context) System (optional)
 - `MEMORY_GROUP_ID` - The ID of the Telegram group where the bot should listen for messages to be stored in the memory.
 - `MIN_MESSAGE_LENGTH` - The minimum length of a message to be considered for memory storage (default: 20 characters).
 - `MESSAGE_COMBINE_WINDOW` - The time window in seconds within which consecutive messages from the same user are combined into a single entry (default: 90 seconds).
 - `QDRANT_HOST` - The hostname or IP address of the Qdrant service (default: `qdrant`).
 - `OPENAI_EMBEDDING_MODEL` - The model to use for generating message embeddings (e.g., `text-embedding-3-small`).
+- `TOOL_API_URL` - The URL for the tool API service (default: `http://tool-api:8081`).
 
 ## Running
 
-The recommended way to run the application is with `docker-compose`, which manages the bot and the Qdrant vector database.
+The recommended way to run the application is with `docker-compose`, which manages the bot, the Qdrant vector database, and the tool-api service.
 
 ### With Docker Compose
 
