@@ -163,3 +163,7 @@ go build -mod=vendor -o madrookbot
 - The project follows a single-package architecture.
 - Dependencies are vendored.
 - Configuration is managed through environment variables.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
