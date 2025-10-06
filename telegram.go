@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -48,21 +47,13 @@ func botGo() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		// Handle message reactions (not parsed by library, need to check raw JSON)
-		// Check if this is a message_reaction update by seeing if it has the typical message fields
+		// Handle message reactions
+		if update.MessageReaction != nil {
+			handleMessageReactionUpdate(update.MessageReaction)
+			continue
+		}
+
 		if update.Message == nil && update.EditedMessage == nil && update.CallbackQuery == nil {
-			// This might be a message_reaction update - try to handle it
-			// We need to get the raw JSON from the update
-			// Since the library doesn't expose raw JSON, we'll need to marshal and check
-			rawJSON, err := json.Marshal(update)
-			if err == nil {
-				var checkReaction struct {
-					MessageReaction interface{} `json:"message_reaction"`
-				}
-				if err := json.Unmarshal(rawJSON, &checkReaction); err == nil && checkReaction.MessageReaction != nil {
-					handleMessageReaction(rawJSON)
-				}
-			}
 			continue
 		}
 		var text string

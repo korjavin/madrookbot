@@ -114,6 +114,12 @@ type Update struct {
 	//
 	// optional
 	ChatJoinRequest *ChatJoinRequest `json:"chat_join_request"`
+	// MessageReaction is a reaction to a message was changed by a user.
+	// The bot must be an administrator in the chat and must explicitly specify
+	// "message_reaction" in the list of allowed_updates to receive these updates.
+	//
+	// optional
+	MessageReaction *MessageReactionUpdated `json:"message_reaction,omitempty"`
 }
 
 // SentFrom returns the user who sent an update. Can be nil, if Telegram did not provide information
@@ -1698,6 +1704,42 @@ type ChatJoinRequest struct {
 	//
 	// optional
 	InviteLink *ChatInviteLink `json:"invite_link"`
+}
+
+// MessageReactionUpdated represents a change of a reaction on a message performed by a user.
+type MessageReactionUpdated struct {
+	// Chat containing the message.
+	Chat Chat `json:"chat"`
+	// MessageID unique identifier of the message.
+	MessageID int `json:"message_id"`
+	// User that changed the reaction, if the user isn't anonymous.
+	//
+	// optional
+	User *User `json:"user,omitempty"`
+	// ActorChat is the chat on behalf of which the reaction was changed, if the user is anonymous.
+	//
+	// optional
+	ActorChat *Chat `json:"actor_chat,omitempty"`
+	// Date of the change in Unix time.
+	Date int `json:"date"`
+	// OldReaction list of reaction types that were set by the user before.
+	OldReaction []ReactionType `json:"old_reaction"`
+	// NewReaction list of reaction types that have been set by the user.
+	NewReaction []ReactionType `json:"new_reaction"`
+}
+
+// ReactionType describes the type of a reaction.
+type ReactionType struct {
+	// Type of the reaction, can be "emoji" or "custom_emoji".
+	Type string `json:"type"`
+	// Emoji reaction type. Only for "emoji" type.
+	//
+	// optional
+	Emoji string `json:"emoji,omitempty"`
+	// CustomEmoji custom emoji identifier. Only for "custom_emoji" type.
+	//
+	// optional
+	CustomEmoji string `json:"custom_emoji,omitempty"`
 }
 
 // ChatPermissions describes actions that a non-administrator user is
