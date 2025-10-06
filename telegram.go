@@ -48,14 +48,22 @@ func botGo() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		log.Printf("[DEBUG] Received update ID %d", update.UpdateID)
+		log.Printf("[DEBUG] Received update ID %d - Message:%v EditedMsg:%v Callback:%v Reaction:%v",
+			update.UpdateID,
+			update.Message != nil,
+			update.EditedMessage != nil,
+			update.CallbackQuery != nil,
+			update.MessageReaction != nil)
+
 		// Handle message reactions
 		if update.MessageReaction != nil {
+			log.Printf("[DEBUG] Processing MessageReaction update")
 			handleMessageReactionUpdate(update.MessageReaction)
 			continue
 		}
 
 		if update.Message == nil && update.EditedMessage == nil && update.CallbackQuery == nil {
+			log.Printf("[DEBUG] Skipping update - no recognized content")
 			continue
 		}
 		var text string
