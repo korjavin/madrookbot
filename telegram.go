@@ -44,9 +44,11 @@ func botGo() {
 	// Enable message_reaction updates to track RSVPs
 	u.AllowedUpdates = []string{"message", "edited_message", "callback_query", "message_reaction"}
 
+	log.Printf("[DEBUG] Requesting updates with AllowedUpdates: %v", u.AllowedUpdates)
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
+		log.Printf("[DEBUG] Received update ID %d", update.UpdateID)
 		// Handle message reactions
 		if update.MessageReaction != nil {
 			handleMessageReactionUpdate(update.MessageReaction)
