@@ -85,7 +85,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.TopK == 0 {
-		req.TopK = 7
+		req.TopK = 10
 	}
 
 	log.Printf("[INFO] Received search query: '%s', top_k: %d", req.Query, req.TopK)

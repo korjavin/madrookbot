@@ -140,19 +140,17 @@ func generateStatAnalysis(bot *tgbotapi.BotAPI, messg *tgbotapi.Message, stats *
 	// Prepare data summary for GPT
 	summary := buildActivitySummary(stats)
 
-	prompt := fmt.Sprintf(`Analyze this Telegram group activity data and provide interesting insights:
+	prompt := fmt.Sprintf(`Analyze this Telegram group activity data:
 
 %s
 
-Please:
-1. Praise the top 3 contributors
-2. Identify interesting activity patterns (peak hours, recurring windows)
-3. Find any notable trends or changes
-4. Make it fun and engaging (use emojis sparingly)
+Provide a SHORT analysis with:
+1. Mention top 4 contributors with their message counts in a single sentence
+2. ONE interesting fun fact about the activity patterns
 
-Keep the response concise (max 300 words).`, summary)
+Keep it super brief (max 100 words total). Be casual and friendly.`, summary)
 
-	analysis, err := getGPTAnswerWithSystem(prompt, "You are a friendly data analyst who finds interesting patterns in group chat activity.")
+	analysis, err := getGPTAnswerWithSystem(prompt, "You are a friendly data analyst who provides brief, fun insights about group chat activity.")
 	if err != nil {
 		log.Printf("[ERROR] GPT analysis failed: %v", err)
 		return

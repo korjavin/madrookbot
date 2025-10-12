@@ -11,7 +11,7 @@ import (
 	"github.com/wcharczuk/go-chart/v2/drawing"
 )
 
-// generateActivityChart creates a PNG chart showing user activity over time
+// generateActivityChart creates a PNG bar chart showing user message counts
 func generateActivityChart(stats *ActivityStats) (*bytes.Buffer, error) {
 	if len(stats.UserStats) == 0 {
 		return nil, fmt.Errorf("no activity data to chart")
@@ -28,8 +28,8 @@ func generateActivityChart(stats *ActivityStats) (*bytes.Buffer, error) {
 		stats.UserStats = stats.UserStats[:maxUsers]
 	}
 
-	// Prepare data for stacked area chart
-	var series []chart.Series
+	// Prepare data for bar chart
+	var bars []chart.Value
 
 	// Color palette
 	colors := []color.RGBA{
@@ -45,47 +45,22 @@ func generateActivityChart(stats *ActivityStats) (*bytes.Buffer, error) {
 		{255, 157, 167, 255}, // pink
 	}
 
-	// Create time series for each user
+	// Create bars for each user
 	for idx, userStat := range stats.UserStats {
-		// Get all unique hour buckets for x-axis
-		var xValues []time.Time
-		var yValues []float64
-
-		// Create sorted time buckets
-		var allHours []time.Time
-		for hour := range userStat.HourlyData {
-			allHours = append(allHours, hour)
-		}
-		sort.Slice(allHours, func(i, j int) bool {
-			return allHours[i].Before(allHours[j])
-		})
-
-		for _, hour := range allHours {
-			xValues = append(xValues, hour)
-			yValues = append(yValues, float64(userStat.HourlyData[hour]))
-		}
-
 		userColor := colors[idx%len(colors)]
-		fillColor := color.RGBA{
-			R: userColor.R,
-			G: userColor.G,
-			B: userColor.B,
-			A: 180,
-		}
-		series = append(series, chart.TimeSeries{
-			Name: userStat.UserName,
+		bars = append(bars, chart.Value{
+			Label: userStat.UserName,
+			Value: float64(userStat.TotalMessages),
 			Style: chart.Style{
 				StrokeColor: drawing.Color(userColor),
-				FillColor:   drawing.Color(fillColor),
-				StrokeWidth: 2,
+				FillColor:   drawing.Color(userColor),
+				StrokeWidth: 0,
 			},
-			XValues: xValues,
-			YValues: yValues,
 		})
 	}
 
-	graph := chart.Chart{
-		Title: fmt.Sprintf("Group Activity (Last 7 Days)"),
+	graph := chart.BarChart{
+		Title: "Group Activity (Last 7 Days)",
 		TitleStyle: chart.Style{
 			FontSize: 16,
 		},
@@ -99,25 +74,17 @@ func generateActivityChart(stats *ActivityStats) (*bytes.Buffer, error) {
 				Bottom: 20,
 			},
 		},
-		XAxis: chart.XAxis{
-			Name: "Time",
-			Style: chart.Style{
-				FontSize: 10,
-			},
-			ValueFormatter: chart.TimeHourValueFormatter,
+		XAxis: chart.Style{
+			FontSize: 10,
 		},
 		YAxis: chart.YAxis{
-			Name: "Messages",
+			Name: "Number of Messages",
 			Style: chart.Style{
 				FontSize: 10,
 			},
 		},
-		Series: series,
-	}
-
-	// Add legend
-	graph.Elements = []chart.Renderable{
-		chart.LegendThin(&graph),
+		BarWidth: 80,
+		Bars:     bars,
 	}
 
 	// Render to buffer

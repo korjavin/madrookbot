@@ -98,9 +98,9 @@ func botGo() {
 
 			// English review feature - randomly check messages for major mistakes
 			minLength := getReviewMinLength()
-			if text != "" && isReviewableMessage(text, minLength) && shouldReviewMessage() {
-				log.Printf("[REVIEW] Selected for review: user=%s, chatID=%d, msgID=%d, length=%d",
-					messg.From.UserName, messg.Chat.ID, messg.MessageID, len(text))
+			if text != "" && isReviewableMessage(text, minLength, messg.From.ID) && shouldReviewMessage() {
+				log.Printf("[REVIEW] Selected for review: user=%s, userID=%d, chatID=%d, msgID=%d, length=%d",
+					messg.From.UserName, messg.From.ID, messg.Chat.ID, messg.MessageID, len(text))
 				review, err := reviewEnglish(text)
 				if err == nil && review != "" {
 					log.Printf("[REVIEW] Sending review to chatID=%d, replyTo=%d",

@@ -10,12 +10,16 @@ import (
 )
 
 var (
-	reviewRand *rand.Rand
+	reviewRand     *rand.Rand
+	ignoredUserIDs map[int64]bool
 )
 
 func init() {
 	// Initialize random generator for review feature
 	reviewRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Initialize ignored users list
+	ignoredUserIDs = parseIgnoredUsers()
 
 	// Log review feature configuration at startup
 	percentage := getReviewPercentage()
@@ -23,11 +27,39 @@ func init() {
 	hasCustomPrompt := os.Getenv("REVIEW_PROMPT") != ""
 
 	if percentage > 0 {
-		log.Printf("[INFO] English review feature enabled: percentage=%.2f%%, minLength=%d, customPrompt=%v",
-			percentage, minLength, hasCustomPrompt)
+		log.Printf("[INFO] English review feature enabled: percentage=%.2f%%, minLength=%d, customPrompt=%v, ignoredUsers=%d",
+			percentage, minLength, hasCustomPrompt, len(ignoredUserIDs))
 	} else {
 		log.Printf("[INFO] English review feature disabled (percentage=0)")
 	}
+}
+
+// parseIgnoredUsers parses the PARTICIPANTS_IGNORE environment variable
+// and returns a map of user IDs to ignore
+func parseIgnoredUsers() map[int64]bool {
+	ignored := make(map[int64]bool)
+	ignoreStr := os.Getenv("PARTICIPANTS_IGNORE")
+	if ignoreStr == "" {
+		return ignored
+	}
+
+	// Split by comma and parse each ID
+	ids := strings.Split(ignoreStr, ",")
+	for _, idStr := range ids {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			log.Printf("[WARN] Invalid user ID in PARTICIPANTS_IGNORE: %s", idStr)
+			continue
+		}
+		ignored[id] = true
+		log.Printf("[INFO] User ID %d will be ignored from grammar reviews", id)
+	}
+
+	return ignored
 }
 
 // getReviewPercentage returns the percentage chance of reviewing a message (0-100)
@@ -92,9 +124,9 @@ IGNORE minor issues like:
 
 If you find MAJOR mistakes, respond in this format:
 MISTAKES FOUND
-Original: [problematic part]
-Issue: [brief explanation]
-Suggestion: [corrected version]
+{original part with mistake} -->> {corrected version}
+
+{brief explanation of the issue}
 
 If there are NO major mistakes or you're uncertain, respond with exactly:
 NO MAJOR MISTAKES
@@ -116,10 +148,16 @@ func shouldReviewMessage() bool {
 }
 
 // isReviewableMessage checks if the message is eligible for review
-// (plain text, not a command, not a bot mention, not too short)
-func isReviewableMessage(text string, minLength int) bool {
+// (plain text, not a command, not a bot mention, not too short, user not ignored)
+func isReviewableMessage(text string, minLength int, userID int64) bool {
 	if text == "" {
 		log.Printf("[DEBUG] Review skipped: empty message")
+		return false
+	}
+
+	// Skip if user is in the ignore list
+	if ignoredUserIDs[userID] {
+		log.Printf("[DEBUG] Review skipped: user ID %d is in ignore list", userID)
 		return false
 	}
 
@@ -144,7 +182,7 @@ func isReviewableMessage(text string, minLength int) bool {
 		return false
 	}
 
-	log.Printf("[DEBUG] Message is reviewable (len=%d)", len(text))
+	log.Printf("[DEBUG] Message is reviewable (len=%d, userID=%d)", len(text), userID)
 	return true
 }
 
