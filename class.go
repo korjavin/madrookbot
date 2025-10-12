@@ -17,8 +17,16 @@ type Class struct {
 	Reminder6hSent       bool
 	Reminder1hSent       bool
 	Unpinned             bool
+	Conducted            bool
 	CreatedAt            time.Time
 	Cancelled            bool
+}
+
+// isColumnExistsError checks if the error is due to column already existing
+func isColumnExistsError(err error) bool {
+	return err != nil && (err.Error() == "duplicate column name: conducted" ||
+		err.Error() == "UNIQUE constraint failed" ||
+		err.Error() == "table classes has no column named conducted")
 }
 
 // initClassesTable creates the classes table if it doesn't exist
@@ -33,6 +41,7 @@ func initClassesTable() error {
 		reminder_6h_sent BOOLEAN DEFAULT 0,
 		reminder_1h_sent BOOLEAN DEFAULT 0,
 		unpinned BOOLEAN DEFAULT 0,
+		conducted BOOLEAN DEFAULT 0,
 		created_at DATETIME NOT NULL,
 		cancelled BOOLEAN DEFAULT 0
 	)`
@@ -40,6 +49,15 @@ func initClassesTable() error {
 	_, err := db.Exec(query)
 	if err != nil {
 		return fmt.Errorf("failed to create classes table: %v", err)
+	}
+
+	// Add conducted column if it doesn't exist (migration)
+	migrationQuery := `
+		ALTER TABLE classes ADD COLUMN conducted BOOLEAN DEFAULT 0
+	`
+	_, err = db.Exec(migrationQuery)
+	if err != nil && !isColumnExistsError(err) {
+		return fmt.Errorf("failed to add conducted column: %v", err)
 	}
 
 	// Create RSVPs table
@@ -127,14 +145,14 @@ func createClass(description string) (*Class, error) {
 	return class, nil
 }
 
-// getActiveClass returns the current active (non-cancelled) class
+// getActiveClass returns the current active (non-cancelled, non-conducted) class
 func getActiveClass() (*Class, error) {
 	query := `
 		SELECT id, description, scheduled_time, announcement_message_id,
 		       announcement_posted, reminder_6h_sent, reminder_1h_sent,
-		       unpinned, created_at, cancelled
+		       unpinned, conducted, created_at, cancelled
 		FROM classes
-		WHERE cancelled = 0
+		WHERE cancelled = 0 AND conducted = 0
 		ORDER BY scheduled_time DESC
 		LIMIT 1
 	`
@@ -149,6 +167,7 @@ func getActiveClass() (*Class, error) {
 		&class.Reminder6hSent,
 		&class.Reminder1hSent,
 		&class.Unpinned,
+		&class.Conducted,
 		&class.CreatedAt,
 		&class.Cancelled,
 	)
@@ -221,6 +240,18 @@ func updateClassUnpinned(classID int) error {
 	}
 
 	log.Printf("[CLASS] Marked class unpinned for ID=%d", classID)
+	return nil
+}
+
+// updateClassConducted marks the class as conducted (finished)
+func updateClassConducted(classID int) error {
+	query := `UPDATE classes SET conducted = 1 WHERE id = ?`
+	_, err := db.Exec(query, classID)
+	if err != nil {
+		return fmt.Errorf("failed to update conducted status: %v", err)
+	}
+
+	log.Printf("[CLASS] Marked class conducted for ID=%d", classID)
 	return nil
 }
 

@@ -95,6 +95,14 @@ func processClassSchedule() {
 		unpinClassAnnouncement(class)
 		return
 	}
+
+	// Task 5: Mark class as conducted (Sunday 22:00 Berlin, 3 hours after class)
+	conductedTime := class.ScheduledTime.Add(3 * time.Hour)
+	if !class.Conducted && nowBerlin.After(conductedTime) {
+		log.Printf("[CLASS] Time to mark class as conducted for class ID=%d", class.ID)
+		markClassConducted(class)
+		return
+	}
 }
 
 // postClassAnnouncement posts the class announcement to the group
@@ -228,6 +236,19 @@ func unpinClassAnnouncement(class *Class) {
 	if err != nil {
 		log.Printf("[ERROR] Failed to update unpin status: %v", err)
 	}
+}
+
+// markClassConducted marks the class as conducted (finished)
+func markClassConducted(class *Class) {
+	log.Printf("[CLASS] Marking class as conducted")
+
+	err := updateClassConducted(class.ID)
+	if err != nil {
+		log.Printf("[ERROR] Failed to update conducted status: %v", err)
+		return
+	}
+
+	log.Printf("[CLASS] Class ID=%d marked as conducted", class.ID)
 
 	// Cleanup old classes
 	cleanupOldClasses()
