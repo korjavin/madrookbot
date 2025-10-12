@@ -123,9 +123,8 @@ IGNORE minor issues like:
 - Single-letter typos in otherwise correct text
 
 If you find MAJOR mistakes, respond in this format:
-MISTAKES FOUND
-{original part with mistake} -->> {corrected version}
 
+{original part with mistake} -->> {corrected version}
 {brief explanation of the issue}
 
 If there are NO major mistakes or you're uncertain, respond with exactly:
