@@ -68,9 +68,11 @@ func botGo() {
 		}
 		var text string
 		var messg *tgbotapi.Message
+		isNewMessage := false
 
 		if update.Message != nil {
 			messg = update.Message
+			isNewMessage = true
 		}
 		if update.EditedMessage != nil {
 			messg = update.EditedMessage
@@ -96,9 +98,13 @@ func botGo() {
 				}
 			}
 
-			// English review feature - randomly check messages for major mistakes
+			// English review feature - randomly check NEW messages only (not edits) for major mistakes
 			minLength := getReviewMinLength()
-			if text != "" && isReviewableMessage(text, minLength, messg.From.ID) && shouldReviewMessage() {
+			if !isNewMessage && text != "" {
+				log.Printf("[DEBUG] Skipping review for edited message from user=%s, userID=%d",
+					messg.From.UserName, messg.From.ID)
+			}
+			if isNewMessage && text != "" && isReviewableMessage(text, minLength, messg.From.ID) && shouldReviewMessage() {
 				log.Printf("[REVIEW] Selected for review: user=%s, userID=%d, chatID=%d, msgID=%d, length=%d",
 					messg.From.UserName, messg.From.ID, messg.Chat.ID, messg.MessageID, len(text))
 				review, err := reviewEnglish(text)
