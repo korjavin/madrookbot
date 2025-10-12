@@ -1,6 +1,6 @@
 # Madrook Bot
 
-A Telegram bot for managing group discussions and media suggestions.
+A Telegram bot for managing group discussions with AI-powered features.
 
 ## Features
 
@@ -21,24 +21,6 @@ A Telegram bot for managing group discussions and media suggestions.
   - 6-month data retention
 - **Class Scheduler System**: Automated system for scheduling and managing online classes.
 - **RAG/MCP Tool**: A Retrieval-Augmented Generation system that gives the bot long-term memory of chat conversations.
-
-### Media Management
-The bot helps manage a weekly discussion group by:
-
-1. **Collecting Media Suggestions**
-   - Automatically detects when users suggest media (articles, videos, podcasts, etc.)
-   - Recognizes phrases like "I suggest this", "what about", "consider", etc. followed by a URL
-   - Maintains a database of suggestions with metadata
-
-2. **Weekly Schedule**
-   - **Monday 15:00 (Berlin)**: Reminder that media collection is active, shows current list
-   - **Wednesday 12:00 (Berlin)**: Presents the list for selection, group owner selects by sending a number
-   - **Sunday 17:00 (Berlin)**: Reminder about the upcoming discussion in 1 hour
-
-3. **Media Lifecycle**
-   - Unselected media is carried over to next week
-   - Media suggestions are removed after 6 weeks if not selected
-   - Selected media is announced. The original implementation intended to pin this message, but this is currently disabled due to limitations in the Telegram library being used.
 
 ### Class Scheduler System
 The bot features a fully automated system for managing weekly online classes.
@@ -64,8 +46,6 @@ The bot has a long-term memory of conversations in a dedicated group, implemente
 ## Commands
 
 - `/help` - Shows help message
-- `/media` or `/list` - Shows the current list of media suggestions
-- `/del [number]` - Delete a suggestion (owner can delete any, users can delete their own)
 - `/idiom <term>` - Shows the definition of an idiom from idioms.thefreedictionary.com
 - `/stat` - Show group activity statistics (admins only, 1/hour rate limit)
 - Mention the bot (`@bot_name <question>`) - Ask GPT, reply to continue conversation

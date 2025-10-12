@@ -8,17 +8,11 @@ import (
 )
 
 func main() {
-	// Initialize media suggestions database
-	err := initMediaSuggestions()
-	if err != nil {
-		log.Printf("Error initializing media suggestions: %v", err)
-	}
-
 	// Initialize conversation cache
 	initConversationCache()
 
 	// Initialize activity tracking database
-	err = initActivityDatabase()
+	err := initActivityDatabase()
 	if err != nil {
 		log.Printf("Error initializing activity database: %v", err)
 	}
@@ -70,7 +64,6 @@ func main() {
 	}()
 
 	// Start scheduled tasks
-	go scheduleMediaTasks()
 	go scheduleActivityCleanup()
 
 	botGo()

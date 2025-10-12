@@ -126,36 +126,11 @@ func botGo() {
 				}
 			}
 
-			// Get class group ID
-			classGroupID, err := getClassGroupID()
-			if err == nil && int64(messg.Chat.ID) == classGroupID {
-				// Check if message contains a suggestion
-				suggestedURL := ExtractSuggestionFromMessage(text)
-				if suggestedURL != "" {
-					// Add to database
-					_, err := AddMediaSuggestion(suggestedURL, messg.From.UserName)
-					if err != nil {
-						log.Printf("Error adding media suggestion: %v", err)
-					} else {
-						// Acknowledge the suggestion
-						reply := fmt.Sprintf("Thanks for your suggestion, @%s! I've added it to our collection.",
-							messg.From.UserName)
-						msg := tgbotapi.NewMessage(messg.Chat.ID, reply)
-						msg.ReplyToMessageID = messg.MessageID
-						_, err = bot.Send(msg)
-						if err != nil {
-							log.Printf("Error sending suggestion acknowledgment: %v", err)
-						}
-					}
-				}
-			}
 		}
 
 		if strings.HasPrefix(strings.ToUpper(text), "/HELP") {
 			answer := `Commands:
 /idiom <term> - Show the definition from idioms.thefreedictionary.com
-/media or /list - Show current list of media suggestions
-/del <number> - Delete a media suggestion
 /stat - Show group activity statistics (admins only, 1/hour)
 
 Mention me @` + name + ` to ask questions (reply to continue conversation)`
@@ -438,23 +413,6 @@ Use "read: <text>" to convert text to speech`
 					continue
 				}
 			}
-		}
-
-		// Handle media commands
-		if strings.HasPrefix(strings.ToUpper(text), "/MEDIA") || strings.HasPrefix(strings.ToUpper(text), "/LIST") {
-			showCurrentMedia(bot, messg)
-			continue
-		}
-
-		// Handle delete commands
-		if strings.HasPrefix(strings.ToUpper(text), "/DEL ") {
-			handleDeleteSuggestion(bot, messg)
-			continue
-		}
-
-		// Handle selection by owner (if message is just a number)
-		if handled := handleMediaSelection(bot, messg); handled {
-			continue
 		}
 
 		// Handle "image:" prefix for image generation (only if Gemini is enabled)
