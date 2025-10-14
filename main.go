@@ -56,6 +56,7 @@ func main() {
 		<-sigChan
 		log.Println("[INFO] Shutdown signal received")
 		stopClassScheduler()
+		stopNewsScheduler()
 		SaveConversationsOnShutdown()
 		if db != nil {
 			db.Close()

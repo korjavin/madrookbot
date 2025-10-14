@@ -39,6 +39,9 @@ func botGo() {
 	// Start class scheduler
 	startClassScheduler(bot)
 
+	// Start news scheduler
+	startNewsScheduler(bot)
+
 	u := tgbotapi.NewUpdate(-1) // Use -1 to get the latest updates and skip old ones
 	u.Timeout = 60
 	// Enable message_reaction updates to track RSVPs
@@ -279,6 +282,102 @@ Use "read: <text>" to convert text to speech`
 			if err != nil {
 				log.Printf("Send: %v ", err)
 			}
+			continue
+		}
+
+		// Handle /news command (owner only, DM only)
+		if strings.HasPrefix(strings.ToUpper(text), "/NEWS") {
+			// Check if it's a DM (private chat)
+			if !messg.Chat.IsPrivate() {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "This command only works in direct messages.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if user is owner
+			if !isOwner(messg.From.ID) {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Only the bot owner can use this command.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if memory group is set
+			if os.Getenv("MEMORY_GROUP_ID") == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "News feature is not configured (MEMORY_GROUP_ID not set).")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Send "working on it" message
+			workingMsg := tgbotapi.NewMessage(messg.Chat.ID, "🔄 Testing news feature...\n\n1. Getting random message from last 20 hours...")
+			sentWorking, _ := bot.Send(workingMsg)
+
+			// Step 1: Get random message
+			randomMessage, err := getRandomRecentMessage()
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to get random message: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				fmt.Sprintf("✅ Got message (%.100s...)\n\n2. Extracting topic...", randomMessage))
+			bot.Send(editMsg)
+
+			// Step 2: Extract topic
+			topic, err := extractTopicFromMessage(randomMessage)
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to extract topic: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				fmt.Sprintf("✅ Extracted topic: \"%s\"\n\n3. Searching for news...", topic))
+			bot.Send(editMsg)
+
+			// Step 3: Search for news
+			newsTitle, newsURL, err := searchGoogleNews(topic)
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to find news: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				fmt.Sprintf("✅ Found article: \"%s\"\n\n4. Generating comment...", newsTitle))
+			bot.Send(editMsg)
+
+			// Step 4: Generate comment
+			comment, err := generateConservativeComment(newsTitle, newsURL)
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to generate comment: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			// Send final result
+			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				"✅ Test complete! Here's what would be posted:")
+			bot.Send(editMsg)
+
+			finalMessage := fmt.Sprintf("%s\n\n%s", comment, newsURL)
+			resultMsg := tgbotapi.NewMessage(messg.Chat.ID, finalMessage)
+			bot.Send(resultMsg)
+
+			// Send debug info
+			debugMsg := tgbotapi.NewMessage(messg.Chat.ID,
+				fmt.Sprintf("📊 Debug info:\n• Topic: %s\n• News: %s\n• Source message: %.100s...",
+					topic, newsTitle, randomMessage))
+			bot.Send(debugMsg)
+
 			continue
 		}
 
