@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -170,7 +171,27 @@ func getRandomRecentMessage() (string, error) {
 	return selectedText, nil
 }
 
+// retryWithBackoff retries a function with exponential backoff
+func retryWithBackoff(operation func() error, maxRetries int, baseDelay time.Duration) error {
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		err := operation()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+
+		if i < maxRetries-1 {
+			delay := baseDelay * time.Duration(1<<uint(i)) // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+			log.Printf("[NEWS] Retry %d/%d failed: %v. Retrying in %v...", i+1, maxRetries, err, delay)
+			time.Sleep(delay)
+		}
+	}
+	return fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+}
+
 // extractTopicFromMessage uses LLM to extract a topic/theme from a message
+// Retries up to 5 times with exponential backoff on failures
 func extractTopicFromMessage(message string) (string, error) {
 	systemPrompt := `You are a helpful assistant that extracts the main topic or theme from a text message.
 Provide a brief topic description (2-5 words) that could be used to search for related news.
@@ -183,7 +204,13 @@ Examples:
 
 	userMessage := fmt.Sprintf("Extract the main topic from this message:\n\n%s", message)
 
-	topic, err := getGPTAnswerWithSystem(userMessage, systemPrompt)
+	var topic string
+	err := retryWithBackoff(func() error {
+		var err error
+		topic, err = getGPTAnswerWithSystem(userMessage, systemPrompt)
+		return err
+	}, 5, 2*time.Second)
+
 	if err != nil {
 		return "", fmt.Errorf("failed to extract topic: %w", err)
 	}
@@ -256,6 +283,7 @@ func searchGoogleNews(topic string) (string, string, error) {
 }
 
 // generateConservativeComment generates a conservative/redneck-style comment about the news
+// Retries up to 5 times with exponential backoff on failures
 func generateConservativeComment(newsTitle, newsURL string) (string, error) {
 	// Get system prompt from environment variable or use default
 	systemPrompt := os.Getenv("NEWS_COMMENT_PROMPT")
@@ -279,7 +307,13 @@ This is a parody account, so it should be entertaining but not offensive.`
 
 	userMessage := fmt.Sprintf("Comment on this news headline:\n\n%s\n\nNews URL: %s", newsTitle, newsURL)
 
-	comment, err := getGPTAnswerWithSystem(userMessage, systemPrompt)
+	var comment string
+	err := retryWithBackoff(func() error {
+		var err error
+		comment, err = getGPTAnswerWithSystem(userMessage, systemPrompt)
+		return err
+	}, 5, 2*time.Second)
+
 	if err != nil {
 		return "", fmt.Errorf("failed to generate comment: %w", err)
 	}
@@ -336,7 +370,29 @@ func shouldPostNewsNow(bot *tgbotapi.BotAPI) bool {
 	return true
 }
 
+// sendOwnerWarning sends a warning message to the bot owner's DM
+func sendOwnerWarning(bot *tgbotapi.BotAPI, warning string) {
+	ownerIDStr := os.Getenv("OWNER_ID")
+	if ownerIDStr == "" {
+		log.Printf("[NEWS] Cannot send owner warning: OWNER_ID not set")
+		return
+	}
+
+	ownerID, err := strconv.ParseInt(ownerIDStr, 10, 64)
+	if err != nil {
+		log.Printf("[NEWS] Cannot send owner warning: invalid OWNER_ID: %v", err)
+		return
+	}
+
+	warningMsg := tgbotapi.NewMessage(ownerID, fmt.Sprintf("⚠️ News Feature Warning\n\n%s", warning))
+	_, err = bot.Send(warningMsg)
+	if err != nil {
+		log.Printf("[NEWS] Failed to send warning to owner: %v", err)
+	}
+}
+
 // tryPostNews attempts to post a news comment to the memory group
+// Errors are logged and sent to owner DM, not posted to the group
 func tryPostNews(bot *tgbotapi.BotAPI) {
 	if !shouldPostNewsNow(bot) {
 		return
@@ -352,6 +408,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	randomMessage, err := getRandomRecentMessage()
 	if err != nil {
 		log.Printf("[NEWS] Error getting random message: %v", err)
+		sendOwnerWarning(bot, fmt.Sprintf("Failed to get random message:\n%v", err))
 		return
 	}
 
@@ -359,6 +416,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	topic, err := extractTopicFromMessage(randomMessage)
 	if err != nil {
 		log.Printf("[NEWS] Error extracting topic: %v", err)
+		sendOwnerWarning(bot, fmt.Sprintf("Failed to extract topic from message:\n%v\n\nMessage: %.200s...", err, randomMessage))
 		return
 	}
 
@@ -366,6 +424,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	newsTitle, newsURL, err := searchGoogleNews(topic)
 	if err != nil {
 		log.Printf("[NEWS] Error searching news: %v", err)
+		sendOwnerWarning(bot, fmt.Sprintf("Failed to find news for topic '%s':\n%v", topic, err))
 		return
 	}
 
@@ -373,6 +432,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	comment, err := generateConservativeComment(newsTitle, newsURL)
 	if err != nil {
 		log.Printf("[NEWS] Error generating comment: %v", err)
+		sendOwnerWarning(bot, fmt.Sprintf("Failed to generate comment for:\n%s\n\nError: %v", newsTitle, err))
 		return
 	}
 
@@ -383,6 +443,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	sentMsg, err := bot.Send(msg)
 	if err != nil {
 		log.Printf("[NEWS] Error sending news comment: %v", err)
+		sendOwnerWarning(bot, fmt.Sprintf("Failed to send message to group:\n%v", err))
 		return
 	}
 
@@ -390,6 +451,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	err = recordNewsPost(topic, newsURL, sentMsg.MessageID)
 	if err != nil {
 		log.Printf("[NEWS] Error recording news post: %v", err)
+		// Don't send warning for database errors, just log
 		return
 	}
 
