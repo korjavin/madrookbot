@@ -234,39 +234,40 @@ type GoogleNewsRSS struct {
 }
 
 // searchGoogleNews searches Google News for articles related to the topic
-func searchGoogleNews(topic string) (string, string, error) {
-	// Google News RSS feed URL
-	// Format: https://news.google.com/rss/search?q=QUERY&hl=en-US&gl=US&ceid=US:en
-	encodedTopic := url.QueryEscape(topic)
+// Returns title, description (truncated to 2000 chars), and URL
+func searchGoogleNews(topic string) (string, string, string, error) {
+	// Google News RSS feed URL with "when:7d" parameter to limit to last 7 days
+	// Format: https://news.google.com/rss/search?q=QUERY+when:7d&hl=en-US&gl=US&ceid=US:en
+	encodedTopic := url.QueryEscape(topic + " when:7d")
 	rssURL := fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", encodedTopic)
 
-	log.Printf("[NEWS] Searching Google News for: %s", topic)
+	log.Printf("[NEWS] Searching Google News for: %s (last 7 days)", topic)
 
 	// Fetch RSS feed
 	resp, err := http.Get(rssURL)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to fetch news RSS: %w", err)
+		return "", "", "", fmt.Errorf("failed to fetch news RSS: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("news RSS returned status: %d", resp.StatusCode)
+		return "", "", "", fmt.Errorf("news RSS returned status: %d", resp.StatusCode)
 	}
 
 	// Read and parse XML
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read RSS body: %w", err)
+		return "", "", "", fmt.Errorf("failed to read RSS body: %w", err)
 	}
 
 	var rss GoogleNewsRSS
 	err = xml.Unmarshal(body, &rss)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse RSS XML: %w", err)
+		return "", "", "", fmt.Errorf("failed to parse RSS XML: %w", err)
 	}
 
 	if len(rss.Channel.Items) == 0 {
-		return "", "", fmt.Errorf("no news articles found for topic: %s", topic)
+		return "", "", "", fmt.Errorf("no news articles found for topic: %s", topic)
 	}
 
 	// Pick a random article from the first 5 results
@@ -278,13 +279,19 @@ func searchGoogleNews(topic string) (string, string, error) {
 	randomIndex := newsRand.Intn(maxItems)
 	article := rss.Channel.Items[randomIndex]
 
-	log.Printf("[NEWS] Found news article: %s", article.Title)
-	return article.Title, article.Link, nil
+	// Truncate description to 2000 chars to avoid context overflow
+	description := article.Description
+	if len(description) > 2000 {
+		description = description[:2000] + "..."
+	}
+
+	log.Printf("[NEWS] Found news article: %s (description length: %d)", article.Title, len(description))
+	return article.Title, description, article.Link, nil
 }
 
 // generateConservativeComment generates a conservative/redneck-style comment about the news
 // Retries up to 5 times with exponential backoff on failures
-func generateConservativeComment(newsTitle, newsURL string) (string, error) {
+func generateConservativeComment(newsTitle, newsDescription, newsURL string) (string, error) {
 	// Get system prompt from environment variable or use default
 	systemPrompt := os.Getenv("NEWS_COMMENT_PROMPT")
 	if systemPrompt == "" {
@@ -305,7 +312,7 @@ Style guidelines:
 This is a parody account, so it should be entertaining but not offensive.`
 	}
 
-	userMessage := fmt.Sprintf("Comment on this news headline:\n\n%s\n\nNews URL: %s", newsTitle, newsURL)
+	userMessage := fmt.Sprintf("Comment on this news:\n\nHeadline: %s\n\nSummary: %s\n\nNews URL: %s", newsTitle, newsDescription, newsURL)
 
 	var comment string
 	err := retryWithBackoff(func() error {
@@ -354,15 +361,15 @@ func shouldPostNewsNow(bot *tgbotapi.BotAPI) bool {
 		return false
 	}
 
-	// Check if the group has been quiet for at least 4 hours
-	isQuiet, err := isGroupQuiet(4 * time.Hour)
+	// Check if the group has been quiet for at least 3 hours
+	isQuiet, err := isGroupQuiet(3 * time.Hour)
 	if err != nil {
 		log.Printf("[NEWS] Error checking if group is quiet: %v", err)
 		return false
 	}
 
 	if !isQuiet {
-		log.Printf("[NEWS] Group is not quiet (had messages in last 4 hours)")
+		log.Printf("[NEWS] Group is not quiet (had messages in last 3 hours)")
 		return false
 	}
 
@@ -421,7 +428,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	}
 
 	// Step 3: Search for news about the topic
-	newsTitle, newsURL, err := searchGoogleNews(topic)
+	newsTitle, newsDescription, newsURL, err := searchGoogleNews(topic)
 	if err != nil {
 		log.Printf("[NEWS] Error searching news: %v", err)
 		sendOwnerWarning(bot, fmt.Sprintf("Failed to find news for topic '%s':\n%v", topic, err))
@@ -429,7 +436,7 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	}
 
 	// Step 4: Generate conservative comment
-	comment, err := generateConservativeComment(newsTitle, newsURL)
+	comment, err := generateConservativeComment(newsTitle, newsDescription, newsURL)
 	if err != nil {
 		log.Printf("[NEWS] Error generating comment: %v", err)
 		sendOwnerWarning(bot, fmt.Sprintf("Failed to generate comment for:\n%s\n\nError: %v", newsTitle, err))

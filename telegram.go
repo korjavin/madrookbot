@@ -342,7 +342,7 @@ Use "read: <text>" to convert text to speech`
 			bot.Send(editMsg)
 
 			// Step 3: Search for news
-			newsTitle, newsURL, err := searchGoogleNews(topic)
+			newsTitle, newsDescription, newsURL, err := searchGoogleNews(topic)
 			if err != nil {
 				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
 					fmt.Sprintf("❌ Failed to find news: %v", err))
@@ -355,7 +355,7 @@ Use "read: <text>" to convert text to speech`
 			bot.Send(editMsg)
 
 			// Step 4: Generate comment
-			comment, err := generateConservativeComment(newsTitle, newsURL)
+			comment, err := generateConservativeComment(newsTitle, newsDescription, newsURL)
 			if err != nil {
 				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
 					fmt.Sprintf("❌ Failed to generate comment: %v", err))
