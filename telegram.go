@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -371,6 +372,121 @@ Use "read: <text>" to convert text to speech`
 				fmt.Sprintf("📊 Debug info:\n• Topic: %s\n• Source message: %.100s...",
 					topic, randomMessage))
 			bot.Send(debugMsg)
+
+			continue
+		}
+
+		// Handle /news_send_to_chan command (owner only, DM only) - Force send message to group
+		if strings.HasPrefix(strings.ToUpper(text), "/NEWS_SEND_TO_CHAN") {
+			// Check if it's a DM (private chat)
+			if !messg.Chat.IsPrivate() {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "This command only works in direct messages.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if user is owner
+			if !isOwner(messg.From.ID) {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Only the bot owner can use this command.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if memory group is set
+			memoryGroupIDStr := os.Getenv("MEMORY_GROUP_ID")
+			if memoryGroupIDStr == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Random message feature is not configured (MEMORY_GROUP_ID not set).")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			memoryGroupID, err := strconv.ParseInt(memoryGroupIDStr, 10, 64)
+			if err != nil {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, fmt.Sprintf("Invalid MEMORY_GROUP_ID: %v", err))
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if RANDOM_MESSAGE_PROMPT is set
+			if os.Getenv("RANDOM_MESSAGE_PROMPT") == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Random message feature is not configured (RANDOM_MESSAGE_PROMPT not set).")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Send "working on it" message
+			workingMsg := tgbotapi.NewMessage(messg.Chat.ID, "🔄 Generating and sending message to group...\n\n1. Getting random message from last 20 hours...")
+			sentWorking, _ := bot.Send(workingMsg)
+
+			// Step 1: Get random message
+			randomMessage, err := getRandomRecentMessage()
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to get random message: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				fmt.Sprintf("✅ Got message\n\n2. Extracting topic..."))
+			bot.Send(editMsg)
+
+			// Step 2: Extract topic
+			topic, err := extractTopicFromMessage(randomMessage)
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to extract topic: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				fmt.Sprintf("✅ Extracted topic: \"%s\"\n\n3. Generating random message...", topic))
+			bot.Send(editMsg)
+
+			// Step 3: Generate random message
+			generatedMessage, err := generateRandomMessage(topic)
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to generate message: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				fmt.Sprintf("✅ Generated message\n\n4. Sending to group..."))
+			bot.Send(editMsg)
+
+			// Step 4: Send to group
+			groupMsg := tgbotapi.NewMessage(memoryGroupID, generatedMessage)
+			sentGroupMsg, err := bot.Send(groupMsg)
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+					fmt.Sprintf("❌ Failed to send message to group: %v", err))
+				bot.Send(editMsg)
+				continue
+			}
+
+			// Step 5: Record the post
+			err = recordNewsPost(topic, "", sentGroupMsg.MessageID)
+			if err != nil {
+				log.Printf("[NEWS] Error recording news post: %v", err)
+				// Don't fail if database recording fails
+			}
+
+			// Send final success message
+			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
+				fmt.Sprintf("✅ Message sent successfully!\n\n• Message ID: %d\n• Topic: %s", sentGroupMsg.MessageID, topic))
+			bot.Send(editMsg)
+
+			// Send a copy of what was sent
+			resultMsg := tgbotapi.NewMessage(messg.Chat.ID, fmt.Sprintf("Message sent to group:\n\n%s", generatedMessage))
+			bot.Send(resultMsg)
 
 			continue
 		}
