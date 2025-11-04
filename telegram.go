@@ -376,8 +376,8 @@ Use "read: <text>" to convert text to speech`
 			continue
 		}
 
-		// Handle /news_send_to_chan command (owner only, DM only) - Force send message to group
-		if strings.HasPrefix(strings.ToUpper(text), "/NEWS_SEND_TO_CHAN") {
+		// Handle /send_to_chan command (owner only, DM only) - Force send message to group
+		if strings.HasPrefix(strings.ToUpper(text), "/SEND_TO_CHAN") {
 			// Check if it's a DM (private chat)
 			if !messg.Chat.IsPrivate() {
 				msg := tgbotapi.NewMessage(messg.Chat.ID, "This command only works in direct messages.")
