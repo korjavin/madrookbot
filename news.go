@@ -289,44 +289,30 @@ func searchGoogleNews(topic string) (string, string, string, error) {
 	return article.Title, description, article.Link, nil
 }
 
-// generateConservativeComment generates a conservative/redneck-style comment about the news
+// generateRandomMessage generates a random message based on the topic using RANDOM_MESSAGE_PROMPT
 // Retries up to 5 times with exponential backoff on failures
-func generateConservativeComment(newsTitle, newsDescription, newsURL string) (string, error) {
-	// Get system prompt from environment variable or use default
-	systemPrompt := os.Getenv("NEWS_COMMENT_PROMPT")
+func generateRandomMessage(topic string) (string, error) {
+	// Get system prompt from environment variable
+	systemPrompt := os.Getenv("RANDOM_MESSAGE_PROMPT")
 	if systemPrompt == "" {
-		// Default prompt
-		systemPrompt = `You are a middle-aged conservative man, almost a redneck, but still polite and well-meaning.
-You have traditional values, are skeptical of mainstream media and government, value hard work and self-reliance.
-You comment on news with a mix of common sense, traditional wisdom, and slight distrust of "the establishment."
-
-Style guidelines:
-- Be polite but opinionated
-- Use occasional colloquialisms (but don't overdo it)
-- Show skepticism toward big tech, government overreach, and liberal policies
-- Value family, community, hard work, and personal responsibility
-- Keep it concise (2-4 sentences)
-- Sometimes reference "back in my day" or traditional wisdom
-- Be genuine and authentic, not a caricature
-
-This is a parody account, so it should be entertaining but not offensive.`
+		return "", fmt.Errorf("RANDOM_MESSAGE_PROMPT environment variable is not set")
 	}
 
-	userMessage := fmt.Sprintf("Comment on this news:\n\nHeadline: %s\n\nSummary: %s\n\nNews URL: %s", newsTitle, newsDescription, newsURL)
+	userMessage := fmt.Sprintf("Generate a message about this topic: %s", topic)
 
-	var comment string
+	var message string
 	err := retryWithBackoff(func() error {
 		var err error
-		comment, err = getGPTAnswerWithSystem(userMessage, systemPrompt)
+		message, err = getGPTAnswerWithSystem(userMessage, systemPrompt)
 		return err
 	}, 5, 2*time.Second)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to generate comment: %w", err)
+		return "", fmt.Errorf("failed to generate random message: %w", err)
 	}
 
-	log.Printf("[NEWS] Generated comment: %s", comment)
-	return comment, nil
+	log.Printf("[NEWS] Generated random message: %s", message)
+	return message, nil
 }
 
 // shouldPostNewsNow checks if it's the right time to post news
@@ -398,7 +384,7 @@ func sendOwnerWarning(bot *tgbotapi.BotAPI, warning string) {
 	}
 }
 
-// tryPostNews attempts to post a news comment to the memory group
+// tryPostNews attempts to post a random message to the memory group
 // Errors are logged and sent to owner DM, not posted to the group
 func tryPostNews(bot *tgbotapi.BotAPI) {
 	if !shouldPostNewsNow(bot) {
@@ -427,42 +413,33 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 		return
 	}
 
-	// Step 3: Search for news about the topic
-	newsTitle, newsDescription, newsURL, err := searchGoogleNews(topic)
+	// Step 3: Generate random message based on the topic
+	message, err := generateRandomMessage(topic)
 	if err != nil {
-		log.Printf("[NEWS] Error searching news: %v", err)
-		sendOwnerWarning(bot, fmt.Sprintf("Failed to find news for topic '%s':\n%v", topic, err))
+		log.Printf("[NEWS] Error generating random message: %v", err)
+		sendOwnerWarning(bot, fmt.Sprintf("Failed to generate message for topic '%s':\n%v", topic, err))
 		return
 	}
 
-	// Step 4: Generate conservative comment
-	comment, err := generateConservativeComment(newsTitle, newsDescription, newsURL)
-	if err != nil {
-		log.Printf("[NEWS] Error generating comment: %v", err)
-		sendOwnerWarning(bot, fmt.Sprintf("Failed to generate comment for:\n%s\n\nError: %v", newsTitle, err))
-		return
-	}
-
-	// Step 5: Post to the group
-	message := fmt.Sprintf("%s\n\n%s", comment, newsURL)
+	// Step 4: Post to the group
 	msg := tgbotapi.NewMessage(memoryGroupID, message)
 
 	sentMsg, err := bot.Send(msg)
 	if err != nil {
-		log.Printf("[NEWS] Error sending news comment: %v", err)
+		log.Printf("[NEWS] Error sending random message: %v", err)
 		sendOwnerWarning(bot, fmt.Sprintf("Failed to send message to group:\n%v", err))
 		return
 	}
 
-	// Step 6: Record the post
-	err = recordNewsPost(topic, newsURL, sentMsg.MessageID)
+	// Step 5: Record the post (use empty string for news_url since we're not using news anymore)
+	err = recordNewsPost(topic, "", sentMsg.MessageID)
 	if err != nil {
 		log.Printf("[NEWS] Error recording news post: %v", err)
 		// Don't send warning for database errors, just log
 		return
 	}
 
-	log.Printf("[NEWS] Successfully posted news comment (message ID: %d)", sentMsg.MessageID)
+	log.Printf("[NEWS] Successfully posted random message (message ID: %d)", sentMsg.MessageID)
 }
 
 // startNewsScheduler starts the news posting scheduler
