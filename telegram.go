@@ -305,14 +305,22 @@ Use "read: <text>" to convert text to speech`
 
 			// Check if memory group is set
 			if os.Getenv("MEMORY_GROUP_ID") == "" {
-				msg := tgbotapi.NewMessage(messg.Chat.ID, "News feature is not configured (MEMORY_GROUP_ID not set).")
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Random message feature is not configured (MEMORY_GROUP_ID not set).")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if RANDOM_MESSAGE_PROMPT is set
+			if os.Getenv("RANDOM_MESSAGE_PROMPT") == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Random message feature is not configured (RANDOM_MESSAGE_PROMPT not set).")
 				msg.ReplyToMessageID = messg.MessageID
 				bot.Send(msg)
 				continue
 			}
 
 			// Send "working on it" message
-			workingMsg := tgbotapi.NewMessage(messg.Chat.ID, "🔄 Testing news feature...\n\n1. Getting random message from last 20 hours...")
+			workingMsg := tgbotapi.NewMessage(messg.Chat.ID, "🔄 Testing random message feature...\n\n1. Getting random message from last 20 hours...")
 			sentWorking, _ := bot.Send(workingMsg)
 
 			// Step 1: Get random message
@@ -338,27 +346,14 @@ Use "read: <text>" to convert text to speech`
 			}
 
 			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
-				fmt.Sprintf("✅ Extracted topic: \"%s\"\n\n3. Searching for news...", topic))
+				fmt.Sprintf("✅ Extracted topic: \"%s\"\n\n3. Generating random message...", topic))
 			bot.Send(editMsg)
 
-			// Step 3: Search for news
-			newsTitle, newsDescription, newsURL, err := searchGoogleNews(topic)
+			// Step 3: Generate random message
+			generatedMessage, err := generateRandomMessage(topic)
 			if err != nil {
 				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
-					fmt.Sprintf("❌ Failed to find news: %v", err))
-				bot.Send(editMsg)
-				continue
-			}
-
-			editMsg = tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
-				fmt.Sprintf("✅ Found article: \"%s\"\n\n4. Generating comment...", newsTitle))
-			bot.Send(editMsg)
-
-			// Step 4: Generate comment
-			comment, err := generateConservativeComment(newsTitle, newsDescription, newsURL)
-			if err != nil {
-				editMsg := tgbotapi.NewEditMessageText(messg.Chat.ID, sentWorking.MessageID,
-					fmt.Sprintf("❌ Failed to generate comment: %v", err))
+					fmt.Sprintf("❌ Failed to generate message: %v", err))
 				bot.Send(editMsg)
 				continue
 			}
@@ -368,14 +363,13 @@ Use "read: <text>" to convert text to speech`
 				"✅ Test complete! Here's what would be posted:")
 			bot.Send(editMsg)
 
-			finalMessage := fmt.Sprintf("%s\n\n%s", comment, newsURL)
-			resultMsg := tgbotapi.NewMessage(messg.Chat.ID, finalMessage)
+			resultMsg := tgbotapi.NewMessage(messg.Chat.ID, generatedMessage)
 			bot.Send(resultMsg)
 
 			// Send debug info
 			debugMsg := tgbotapi.NewMessage(messg.Chat.ID,
-				fmt.Sprintf("📊 Debug info:\n• Topic: %s\n• News: %s\n• Source message: %.100s...",
-					topic, newsTitle, randomMessage))
+				fmt.Sprintf("📊 Debug info:\n• Topic: %s\n• Source message: %.100s...",
+					topic, randomMessage))
 			bot.Send(debugMsg)
 
 			continue
