@@ -21,6 +21,22 @@ type class struct {
 
 var currentClass class
 
+// InteractiveNewsSession stores the state of an interactive news session
+type InteractiveNewsSession struct {
+	Step             string   // "topic_selection", "message_generation"
+	TopicCandidates  []string // 3 topic candidates
+	SelectedTopic    string   // The chosen topic
+	GeneratedMessage string   // The generated message
+	SourceMessages   []string // Original messages for candidates
+	MessageID        int      // Bot's message ID for editing
+}
+
+var interactiveSessions map[int64]*InteractiveNewsSession // key: user ID
+
+func init() {
+	interactiveSessions = make(map[int64]*InteractiveNewsSession)
+}
+
 func botGo() {
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
@@ -66,7 +82,13 @@ func botGo() {
 			continue
 		}
 
-		if update.Message == nil && update.EditedMessage == nil && update.CallbackQuery == nil {
+		// Handle callback queries (button clicks)
+		if update.CallbackQuery != nil {
+			handleInteractiveNewsCallback(bot, update.CallbackQuery)
+			continue
+		}
+
+		if update.Message == nil && update.EditedMessage == nil {
 			log.Printf("[DEBUG] Skipping update - no recognized content")
 			continue
 		}
@@ -286,6 +308,45 @@ Use "read: <text>" to convert text to speech`
 			continue
 		}
 
+		// Handle /inews command (owner only, DM only) - Interactive news with confirmations
+		if strings.HasPrefix(strings.ToUpper(text), "/INEWS") {
+			// Check if it's a DM (private chat)
+			if !messg.Chat.IsPrivate() {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "This command only works in direct messages.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if user is owner
+			if !isOwner(messg.From.ID) {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Only the bot owner can use this command.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if memory group is set
+			if os.Getenv("MEMORY_GROUP_ID") == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Random message feature is not configured (MEMORY_GROUP_ID not set).")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if RANDOM_MESSAGE_PROMPT is set
+			if os.Getenv("RANDOM_MESSAGE_PROMPT") == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Random message feature is not configured (RANDOM_MESSAGE_PROMPT not set).")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Start interactive session
+			startInteractiveNewsSession(bot, messg.From.ID, messg.Chat.ID)
+			continue
+		}
+
 		// Handle /news command (owner only, DM only)
 		if strings.HasPrefix(strings.ToUpper(text), "/NEWS") {
 			// Check if it's a DM (private chat)
@@ -496,6 +557,60 @@ Use "read: <text>" to convert text to speech`
 			continue
 		}
 
+		// Handle custom topic input for interactive news session
+		if messg.Chat.IsPrivate() && text != "" && !strings.HasPrefix(text, "/") {
+			if session, exists := interactiveSessions[messg.From.ID]; exists && session.Step == "topic_selection" {
+				// User is providing a custom topic
+				customTopic := strings.TrimSpace(text)
+				if customTopic == "" {
+					msg := tgbotapi.NewMessage(messg.Chat.ID, "❌ Topic cannot be empty. Please try again or use /inews to restart.")
+					msg.ReplyToMessageID = messg.MessageID
+					bot.Send(msg)
+					continue
+				}
+
+				session.SelectedTopic = customTopic
+				session.Step = "message_generation"
+
+				// Acknowledge custom topic
+				ackMsg := tgbotapi.NewMessage(messg.Chat.ID, fmt.Sprintf("✅ Custom topic received: \"%s\"\n\n🔄 Generating message...", customTopic))
+				bot.Send(ackMsg)
+
+				// Generate message
+				generatedMessage, err := generateRandomMessage(customTopic)
+				if err != nil {
+					errorMsg := tgbotapi.NewMessage(messg.Chat.ID, fmt.Sprintf("❌ Failed to generate message: %v", err))
+					bot.Send(errorMsg)
+					delete(interactiveSessions, messg.From.ID)
+					continue
+				}
+
+				session.GeneratedMessage = generatedMessage
+
+				// Show generated message with options
+				messageText := fmt.Sprintf("✅ Generated message:\n\n%s\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?", generatedMessage)
+
+				keyboard := tgbotapi.NewInlineKeyboardMarkup(
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData("📤 Send to Channel", "inews:send"),
+					),
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData("🔄 Regenerate", "inews:regenerate"),
+					),
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "inews:cancel"),
+					),
+				)
+
+				msgWithKeyboard := tgbotapi.NewMessage(messg.Chat.ID, messageText)
+				msgWithKeyboard.ReplyMarkup = keyboard
+				bot.Send(msgWithKeyboard)
+
+				log.Printf("[INEWS] Custom topic used by user %d: %s", messg.From.ID, customTopic)
+				continue
+			}
+		}
+
 		// Handle replies to bot messages (conversation threading)
 		if client != nil && messg.ReplyToMessage != nil && messg.ReplyToMessage.From.ID == bot.Self.ID {
 			// User is replying to a bot message - check if it's part of a conversation
@@ -691,5 +806,268 @@ Use "read: <text>" to convert text to speech`
 				}
 			}
 		}
+	}
+}
+
+// startInteractiveNewsSession starts an interactive news generation session
+func startInteractiveNewsSession(bot *tgbotapi.BotAPI, userID int64, chatID int64) {
+	// Send initial message
+	msg := tgbotapi.NewMessage(chatID, "🔄 Starting interactive news session...\n\nGetting 3 random messages from last 20 hours...")
+	sentMsg, err := bot.Send(msg)
+	if err != nil {
+		log.Printf("[INEWS] Failed to send initial message: %v", err)
+		return
+	}
+
+	// Get 3 random messages and extract topics
+	var topicCandidates []string
+	var sourceMessages []string
+
+	for i := 0; i < 3; i++ {
+		randomMessage, err := getRandomRecentMessage()
+		if err != nil {
+			editMsg := tgbotapi.NewEditMessageText(chatID, sentMsg.MessageID,
+				fmt.Sprintf("❌ Failed to get random message: %v", err))
+			bot.Send(editMsg)
+			return
+		}
+
+		topic, err := extractTopicFromMessage(randomMessage)
+		if err != nil {
+			editMsg := tgbotapi.NewEditMessageText(chatID, sentMsg.MessageID,
+				fmt.Sprintf("❌ Failed to extract topic from message %d: %v", i+1, err))
+			bot.Send(editMsg)
+			return
+		}
+
+		topicCandidates = append(topicCandidates, topic)
+		sourceMessages = append(sourceMessages, randomMessage)
+
+		// Update progress
+		editMsg := tgbotapi.NewEditMessageText(chatID, sentMsg.MessageID,
+			fmt.Sprintf("🔄 Processing... (%d/3 topics extracted)", i+1))
+		bot.Send(editMsg)
+	}
+
+	// Create session
+	session := &InteractiveNewsSession{
+		Step:            "topic_selection",
+		TopicCandidates: topicCandidates,
+		SourceMessages:  sourceMessages,
+		MessageID:       sentMsg.MessageID,
+	}
+	interactiveSessions[userID] = session
+
+	// Show topic selection with buttons
+	messageText := "✅ Found 3 topic candidates!\n\nPlease select a topic:\n\n"
+	for i, topic := range topicCandidates {
+		messageText += fmt.Sprintf("%d. %s\n", i+1, topic)
+	}
+	messageText += "\nOr send me your own custom topic as a text message."
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("1️⃣ "+topicCandidates[0], "inews:topic:0"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("2️⃣ "+topicCandidates[1], "inews:topic:1"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("3️⃣ "+topicCandidates[2], "inews:topic:2"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "inews:cancel"),
+		),
+	)
+
+	editMsg := tgbotapi.NewEditMessageTextAndMarkup(chatID, sentMsg.MessageID, messageText, keyboard)
+	bot.Send(editMsg)
+
+	log.Printf("[INEWS] Started interactive session for user %d with topics: %v", userID, topicCandidates)
+}
+
+// handleInteractiveNewsCallback handles button clicks in interactive news session
+func handleInteractiveNewsCallback(bot *tgbotapi.BotAPI, query *tgbotapi.CallbackQuery) {
+	// Answer callback query immediately to remove loading state
+	callback := tgbotapi.NewCallback(query.ID, "")
+	bot.Request(callback)
+
+	userID := query.From.ID
+	chatID := query.Message.Chat.ID
+	messageID := query.Message.MessageID
+
+	// Check if there's an active session
+	session, exists := interactiveSessions[userID]
+	if !exists {
+		msg := tgbotapi.NewMessage(chatID, "❌ No active session. Use /inews to start a new one.")
+		bot.Send(msg)
+		return
+	}
+
+	data := query.Data
+
+	// Handle cancel
+	if data == "inews:cancel" {
+		delete(interactiveSessions, userID)
+		editMsg := tgbotapi.NewEditMessageText(chatID, messageID, "❌ Interactive session cancelled.")
+		bot.Send(editMsg)
+		log.Printf("[INEWS] Session cancelled by user %d", userID)
+		return
+	}
+
+	// Handle topic selection
+	if strings.HasPrefix(data, "inews:topic:") {
+		if session.Step != "topic_selection" {
+			msg := tgbotapi.NewMessage(chatID, "❌ Invalid session state.")
+			bot.Send(msg)
+			return
+		}
+
+		// Parse topic index
+		indexStr := strings.TrimPrefix(data, "inews:topic:")
+		index, err := strconv.Atoi(indexStr)
+		if err != nil || index < 0 || index >= len(session.TopicCandidates) {
+			msg := tgbotapi.NewMessage(chatID, "❌ Invalid topic selection.")
+			bot.Send(msg)
+			return
+		}
+
+		selectedTopic := session.TopicCandidates[index]
+		session.SelectedTopic = selectedTopic
+		session.Step = "message_generation"
+
+		// Update message to show selection
+		editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+			fmt.Sprintf("✅ Selected topic: \"%s\"\n\n🔄 Generating message...", selectedTopic))
+		bot.Send(editMsg)
+
+		// Generate message
+		generatedMessage, err := generateRandomMessage(selectedTopic)
+		if err != nil {
+			editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+				fmt.Sprintf("❌ Failed to generate message: %v", err))
+			bot.Send(editMsg)
+			delete(interactiveSessions, userID)
+			return
+		}
+
+		session.GeneratedMessage = generatedMessage
+
+		// Show generated message with options
+		messageText := fmt.Sprintf("✅ Generated message:\n\n%s\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?", generatedMessage)
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("📤 Send to Channel", "inews:send"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔄 Regenerate", "inews:regenerate"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "inews:cancel"),
+			),
+		)
+
+		editMsg = tgbotapi.NewEditMessageTextAndMarkup(chatID, messageID, messageText, keyboard)
+		bot.Send(editMsg)
+
+		log.Printf("[INEWS] Generated message for user %d with topic: %s", userID, selectedTopic)
+		return
+	}
+
+	// Handle regenerate
+	if data == "inews:regenerate" {
+		if session.Step != "message_generation" || session.SelectedTopic == "" {
+			msg := tgbotapi.NewMessage(chatID, "❌ Invalid session state.")
+			bot.Send(msg)
+			return
+		}
+
+		// Update message to show regeneration
+		editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+			fmt.Sprintf("🔄 Regenerating message for topic: \"%s\"...", session.SelectedTopic))
+		bot.Send(editMsg)
+
+		// Regenerate message
+		generatedMessage, err := generateRandomMessage(session.SelectedTopic)
+		if err != nil {
+			editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+				fmt.Sprintf("❌ Failed to regenerate message: %v", err))
+			bot.Send(editMsg)
+			return
+		}
+
+		session.GeneratedMessage = generatedMessage
+
+		// Show regenerated message with options
+		messageText := fmt.Sprintf("✅ Regenerated message:\n\n%s\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?", generatedMessage)
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("📤 Send to Channel", "inews:send"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔄 Regenerate", "inews:regenerate"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "inews:cancel"),
+			),
+		)
+
+		editMsg = tgbotapi.NewEditMessageTextAndMarkup(chatID, messageID, messageText, keyboard)
+		bot.Send(editMsg)
+
+		log.Printf("[INEWS] Regenerated message for user %d", userID)
+		return
+	}
+
+	// Handle send to channel
+	if data == "inews:send" {
+		if session.Step != "message_generation" || session.GeneratedMessage == "" {
+			msg := tgbotapi.NewMessage(chatID, "❌ Invalid session state.")
+			bot.Send(msg)
+			return
+		}
+
+		// Get memory group ID
+		memoryGroupID, err := getEnvInt64("MEMORY_GROUP_ID")
+		if err != nil {
+			editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+				fmt.Sprintf("❌ Failed to get MEMORY_GROUP_ID: %v", err))
+			bot.Send(editMsg)
+			return
+		}
+
+		// Update message to show sending
+		editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+			"📤 Sending message to channel...")
+		bot.Send(editMsg)
+
+		// Send to group
+		groupMsg := tgbotapi.NewMessage(memoryGroupID, session.GeneratedMessage)
+		sentGroupMsg, err := bot.Send(groupMsg)
+		if err != nil {
+			editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+				fmt.Sprintf("❌ Failed to send message to group: %v", err))
+			bot.Send(editMsg)
+			return
+		}
+
+		// Record the post
+		err = recordNewsPost(session.SelectedTopic, "", sentGroupMsg.MessageID)
+		if err != nil {
+			log.Printf("[INEWS] Error recording news post: %v", err)
+		}
+
+		// Send success message
+		editMsg = tgbotapi.NewEditMessageText(chatID, messageID,
+			fmt.Sprintf("✅ Message sent successfully!\n\n• Message ID: %d\n• Topic: %s\n\nMessage:\n%s",
+				sentGroupMsg.MessageID, session.SelectedTopic, session.GeneratedMessage))
+		bot.Send(editMsg)
+
+		// Clean up session
+		delete(interactiveSessions, userID)
+		log.Printf("[INEWS] Message sent to group by user %d (message ID: %d)", userID, sentGroupMsg.MessageID)
+		return
 	}
 }
