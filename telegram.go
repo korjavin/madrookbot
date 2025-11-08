@@ -805,6 +805,7 @@ Use "read: <text>" to convert text to speech`
 					}
 				}
 			}
+			continue
 		}
 	}
 }
