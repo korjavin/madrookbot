@@ -9,17 +9,17 @@ import (
 
 // Class represents a scheduled class
 type Class struct {
-	ID                   int
-	Description          string
-	ScheduledTime        time.Time
+	ID                    int
+	Description           string
+	ScheduledTime         time.Time
 	AnnouncementMessageID int
-	AnnouncementPosted   bool
-	Reminder6hSent       bool
-	Reminder1hSent       bool
-	Unpinned             bool
-	Conducted            bool
-	CreatedAt            time.Time
-	Cancelled            bool
+	AnnouncementPosted    bool
+	Reminder6hSent        bool
+	Reminder1hSent        bool
+	Unpinned              bool
+	Conducted             bool
+	CreatedAt             time.Time
+	Cancelled             bool
 }
 
 // isColumnExistsError checks if the error is due to column already existing
@@ -82,8 +82,8 @@ func initClassesTable() error {
 	return nil
 }
 
-// getNextSunday returns the next Sunday at 19:00 Berlin time
-// If today is Sunday and it's before 19:00, returns today at 19:00
+// getNextSunday returns the next Sunday at 18:00 Berlin time
+// If today is Sunday and it's before 18:00, returns today at 18:00
 func getNextSunday() time.Time {
 	berlin, err := time.LoadLocation("Europe/Berlin")
 	if err != nil {
@@ -93,10 +93,10 @@ func getNextSunday() time.Time {
 
 	now := time.Now().In(berlin)
 
-	// Set to 19:00 today
-	classTime := time.Date(now.Year(), now.Month(), now.Day(), 19, 0, 0, 0, berlin)
+	// Set to 18:00 today
+	classTime := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, berlin)
 
-	// If today is Sunday and it's before 19:00, use today
+	// If today is Sunday and it's before 18:00, use today
 	if now.Weekday() == time.Sunday && now.Before(classTime) {
 		return classTime
 	}
@@ -108,7 +108,7 @@ func getNextSunday() time.Time {
 	}
 
 	nextSunday := now.AddDate(0, 0, daysUntilSunday)
-	return time.Date(nextSunday.Year(), nextSunday.Month(), nextSunday.Day(), 19, 0, 0, 0, berlin)
+	return time.Date(nextSunday.Year(), nextSunday.Month(), nextSunday.Day(), 18, 0, 0, 0, berlin)
 }
 
 // createClass creates a new class and stores it in the database
