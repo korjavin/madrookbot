@@ -587,8 +587,20 @@ Use "read: <text>" to convert text to speech`
 
 				session.GeneratedMessage = generatedMessage
 
-				// Show generated message with options
-				messageText := fmt.Sprintf("✅ Generated message:\n\n%s\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?", generatedMessage)
+				// Show generated message with options (truncate if too long)
+				const maxPreviewLength = 3500 // Leave room for formatting and buttons
+				previewMessage := generatedMessage
+				truncated := false
+				if len(generatedMessage) > maxPreviewLength {
+					previewMessage = generatedMessage[:maxPreviewLength] + "..."
+					truncated = true
+				}
+
+				messageText := fmt.Sprintf("✅ Generated message:\n\n%s", previewMessage)
+				if truncated {
+					messageText += "\n\n⚠️ Message preview truncated. Full message will be sent to channel."
+				}
+				messageText += "\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?"
 
 				keyboard := tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
@@ -604,7 +616,14 @@ Use "read: <text>" to convert text to speech`
 
 				msgWithKeyboard := tgbotapi.NewMessage(messg.Chat.ID, messageText)
 				msgWithKeyboard.ReplyMarkup = keyboard
-				bot.Send(msgWithKeyboard)
+				_, err = bot.Send(msgWithKeyboard)
+				if err != nil {
+					log.Printf("[INEWS] Failed to send message with keyboard for user %d: %v", messg.From.ID, err)
+					errorMsg := tgbotapi.NewMessage(messg.Chat.ID, fmt.Sprintf("❌ Failed to display message: %v", err))
+					bot.Send(errorMsg)
+					delete(interactiveSessions, messg.From.ID)
+					continue
+				}
 
 				log.Printf("[INEWS] Custom topic used by user %d: %s", messg.From.ID, customTopic)
 				continue
@@ -887,6 +906,45 @@ func startInteractiveNewsSession(bot *tgbotapi.BotAPI, userID int64, chatID int6
 	log.Printf("[INEWS] Started interactive session for user %d with topics: %v", userID, topicCandidates)
 }
 
+// showGeneratedMessageWithButtons shows the generated message with action buttons
+// It truncates the message if it's too long to fit in a single Telegram message
+func showGeneratedMessageWithButtons(bot *tgbotapi.BotAPI, chatID int64, messageID int, generatedMessage string, actionText string) error {
+	const maxPreviewLength = 3500 // Leave room for formatting and buttons (Telegram limit is 4096)
+
+	previewMessage := generatedMessage
+	truncated := false
+	if len(generatedMessage) > maxPreviewLength {
+		previewMessage = generatedMessage[:maxPreviewLength] + "..."
+		truncated = true
+	}
+
+	messageText := fmt.Sprintf("%s:\n\n%s", actionText, previewMessage)
+	if truncated {
+		messageText += "\n\n⚠️ Message preview truncated. Full message will be sent to channel."
+	}
+	messageText += "\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?"
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("📤 Send to Channel", "inews:send"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔄 Regenerate", "inews:regenerate"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "inews:cancel"),
+		),
+	)
+
+	editMsg := tgbotapi.NewEditMessageTextAndMarkup(chatID, messageID, messageText, keyboard)
+	_, err := bot.Send(editMsg)
+	if err != nil {
+		log.Printf("[INEWS] Error sending message with buttons: %v", err)
+		return fmt.Errorf("failed to show message: %v", err)
+	}
+	return nil
+}
+
 // handleInteractiveNewsCallback handles button clicks in interactive news session
 func handleInteractiveNewsCallback(bot *tgbotapi.BotAPI, query *tgbotapi.CallbackQuery) {
 	// Answer callback query immediately to remove loading state
@@ -955,22 +1013,15 @@ func handleInteractiveNewsCallback(bot *tgbotapi.BotAPI, query *tgbotapi.Callbac
 		session.GeneratedMessage = generatedMessage
 
 		// Show generated message with options
-		messageText := fmt.Sprintf("✅ Generated message:\n\n%s\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?", generatedMessage)
-
-		keyboard := tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("📤 Send to Channel", "inews:send"),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("🔄 Regenerate", "inews:regenerate"),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "inews:cancel"),
-			),
-		)
-
-		editMsg = tgbotapi.NewEditMessageTextAndMarkup(chatID, messageID, messageText, keyboard)
-		bot.Send(editMsg)
+		err = showGeneratedMessageWithButtons(bot, chatID, messageID, generatedMessage, "✅ Generated message")
+		if err != nil {
+			log.Printf("[INEWS] Failed to show generated message for user %d: %v", userID, err)
+			// Try to send error message
+			editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+				fmt.Sprintf("❌ Error displaying message: %v\n\nThe message was generated but could not be displayed.", err))
+			bot.Send(editMsg)
+			return
+		}
 
 		log.Printf("[INEWS] Generated message for user %d with topic: %s", userID, selectedTopic)
 		return
@@ -1001,22 +1052,15 @@ func handleInteractiveNewsCallback(bot *tgbotapi.BotAPI, query *tgbotapi.Callbac
 		session.GeneratedMessage = generatedMessage
 
 		// Show regenerated message with options
-		messageText := fmt.Sprintf("✅ Regenerated message:\n\n%s\n\n━━━━━━━━━━━━━━━━\nWhat would you like to do?", generatedMessage)
-
-		keyboard := tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("📤 Send to Channel", "inews:send"),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("🔄 Regenerate", "inews:regenerate"),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("❌ Cancel", "inews:cancel"),
-			),
-		)
-
-		editMsg = tgbotapi.NewEditMessageTextAndMarkup(chatID, messageID, messageText, keyboard)
-		bot.Send(editMsg)
+		err = showGeneratedMessageWithButtons(bot, chatID, messageID, generatedMessage, "✅ Regenerated message")
+		if err != nil {
+			log.Printf("[INEWS] Failed to show regenerated message for user %d: %v", userID, err)
+			// Try to send error message
+			editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+				fmt.Sprintf("❌ Error displaying message: %v\n\nThe message was regenerated but could not be displayed.", err))
+			bot.Send(editMsg)
+			return
+		}
 
 		log.Printf("[INEWS] Regenerated message for user %d", userID)
 		return
