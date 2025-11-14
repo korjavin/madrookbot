@@ -1044,31 +1044,48 @@ func handleInteractiveNewsCallback(bot *tgbotapi.BotAPI, query *tgbotapi.Callbac
 			"📤 Sending message to channel...")
 		bot.Send(editMsg)
 
-		// Send to group
-		groupMsg := tgbotapi.NewMessage(memoryGroupID, session.GeneratedMessage)
-		sentGroupMsg, err := bot.Send(groupMsg)
-		if err != nil {
-			editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
-				fmt.Sprintf("❌ Failed to send message to group: %v", err))
-			bot.Send(editMsg)
-			return
+		// Split message if it's too long (Telegram limit is 4096 characters)
+		const telegramMaxLength = 4096
+		messageChunks := splitMessage(session.GeneratedMessage, telegramMaxLength)
+
+		log.Printf("[INEWS] Message split into %d chunk(s)", len(messageChunks))
+
+		// Send all chunks to the group
+		var lastMessageID int
+		for i, chunk := range messageChunks {
+			groupMsg := tgbotapi.NewMessage(memoryGroupID, chunk)
+			sentGroupMsg, err := bot.Send(groupMsg)
+			if err != nil {
+				editMsg := tgbotapi.NewEditMessageText(chatID, messageID,
+					fmt.Sprintf("❌ Failed to send message chunk %d/%d to group: %v", i+1, len(messageChunks), err))
+				bot.Send(editMsg)
+				return
+			}
+
+			lastMessageID = sentGroupMsg.MessageID
+			log.Printf("[INEWS] Successfully sent chunk %d/%d (message ID: %d)", i+1, len(messageChunks), sentGroupMsg.MessageID)
+
+			// Small delay between chunks to avoid rate limiting
+			if i < len(messageChunks)-1 {
+				time.Sleep(500 * time.Millisecond)
+			}
 		}
 
-		// Record the post
-		err = recordNewsPost(session.SelectedTopic, "", sentGroupMsg.MessageID)
+		// Record the post (use the last message ID)
+		err = recordNewsPost(session.SelectedTopic, "", lastMessageID)
 		if err != nil {
 			log.Printf("[INEWS] Error recording news post: %v", err)
 		}
 
 		// Send success message
 		editMsg = tgbotapi.NewEditMessageText(chatID, messageID,
-			fmt.Sprintf("✅ Message sent successfully!\n\n• Message ID: %d\n• Topic: %s\n\nMessage:\n%s",
-				sentGroupMsg.MessageID, session.SelectedTopic, session.GeneratedMessage))
+			fmt.Sprintf("✅ Message sent successfully!\n\n• Last Message ID: %d\n• Topic: %s\n• Chunks: %d\n\nMessage:\n%s",
+				lastMessageID, session.SelectedTopic, len(messageChunks), session.GeneratedMessage))
 		bot.Send(editMsg)
 
 		// Clean up session
 		delete(interactiveSessions, userID)
-		log.Printf("[INEWS] Message sent to group by user %d (message ID: %d)", userID, sentGroupMsg.MessageID)
+		log.Printf("[INEWS] Message sent to group by user %d (%d chunk(s), last message ID: %d)", userID, len(messageChunks), lastMessageID)
 		return
 	}
 }
