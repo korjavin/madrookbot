@@ -363,6 +363,41 @@ func shouldPostNewsNow(bot *tgbotapi.BotAPI) bool {
 	return true
 }
 
+// splitMessage splits a long message into chunks that fit Telegram's character limit
+// Telegram's limit is 4096 characters per message
+func splitMessage(text string, maxLength int) []string {
+	if len(text) <= maxLength {
+		return []string{text}
+	}
+
+	var chunks []string
+	remaining := text
+
+	for len(remaining) > 0 {
+		// If remaining text fits in one message, add it and we're done
+		if len(remaining) <= maxLength {
+			chunks = append(chunks, remaining)
+			break
+		}
+
+		// Find a good breaking point (prefer newline, then space, then hard cut)
+		cutPoint := maxLength
+
+		// Look for newline in the last 200 characters of the chunk
+		if lastNewline := strings.LastIndex(remaining[:maxLength], "\n"); lastNewline > maxLength-200 && lastNewline > 0 {
+			cutPoint = lastNewline + 1 // Include the newline
+		} else if lastSpace := strings.LastIndex(remaining[:maxLength], " "); lastSpace > maxLength-100 && lastSpace > 0 {
+			// Look for space in the last 100 characters of the chunk
+			cutPoint = lastSpace + 1 // Include the space
+		}
+
+		chunks = append(chunks, remaining[:cutPoint])
+		remaining = remaining[cutPoint:]
+	}
+
+	return chunks
+}
+
 // sendOwnerWarning sends a warning message to the bot owner's DM
 func sendOwnerWarning(bot *tgbotapi.BotAPI, warning string) {
 	ownerIDStr := os.Getenv("OWNER_ID")
@@ -421,25 +456,42 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 		return
 	}
 
-	// Step 4: Post to the group
-	msg := tgbotapi.NewMessage(memoryGroupID, message)
+	// Step 4: Split message if it's too long (Telegram limit is 4096 characters)
+	const telegramMaxLength = 4096
+	messageChunks := splitMessage(message, telegramMaxLength)
 
-	sentMsg, err := bot.Send(msg)
-	if err != nil {
-		log.Printf("[NEWS] Error sending random message: %v", err)
-		sendOwnerWarning(bot, fmt.Sprintf("Failed to send message to group:\n%v", err))
-		return
+	log.Printf("[NEWS] Message split into %d chunk(s)", len(messageChunks))
+
+	// Step 5: Post all chunks to the group
+	var lastMessageID int
+	for i, chunk := range messageChunks {
+		msg := tgbotapi.NewMessage(memoryGroupID, chunk)
+
+		sentMsg, err := bot.Send(msg)
+		if err != nil {
+			log.Printf("[NEWS] Error sending message chunk %d/%d: %v", i+1, len(messageChunks), err)
+			sendOwnerWarning(bot, fmt.Sprintf("Failed to send message chunk %d/%d to group:\n%v", i+1, len(messageChunks), err))
+			return
+		}
+
+		lastMessageID = sentMsg.MessageID
+		log.Printf("[NEWS] Successfully sent chunk %d/%d (message ID: %d)", i+1, len(messageChunks), sentMsg.MessageID)
+
+		// Small delay between chunks to avoid rate limiting
+		if i < len(messageChunks)-1 {
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 
-	// Step 5: Record the post (use empty string for news_url since we're not using news anymore)
-	err = recordNewsPost(topic, "", sentMsg.MessageID)
+	// Step 6: Record the post (use the last message ID)
+	err = recordNewsPost(topic, "", lastMessageID)
 	if err != nil {
 		log.Printf("[NEWS] Error recording news post: %v", err)
 		// Don't send warning for database errors, just log
 		return
 	}
 
-	log.Printf("[NEWS] Successfully posted random message (message ID: %d)", sentMsg.MessageID)
+	log.Printf("[NEWS] Successfully posted random message (%d chunk(s), last message ID: %d)", len(messageChunks), lastMessageID)
 }
 
 // startNewsScheduler starts the news posting scheduler
