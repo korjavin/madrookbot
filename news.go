@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -21,8 +22,10 @@ import (
 )
 
 var (
-	newsRand      *rand.Rand
-	newsScheduler *time.Ticker
+	newsRand          *rand.Rand
+	newsScheduler     *time.Ticker
+	newsLastAlertTime time.Time     // When we last sent a removal alert
+	newsAlertCooldown time.Duration = 31 * 24 * time.Hour
 )
 
 func init() {
@@ -384,8 +387,66 @@ func sendOwnerWarning(bot *tgbotapi.BotAPI, warning string) {
 	}
 }
 
+// isBotInGroup checks if the bot is still a member of the memory group
+func isBotInGroup(bot *tgbotapi.BotAPI) (bool, error) {
+	memoryGroupID, err := getEnvInt64("MEMORY_GROUP_ID")
+	if err != nil {
+		return false, fmt.Errorf("MEMORY_GROUP_ID not set: %w", err)
+	}
+
+	botUserID := bot.Self.ID
+	params := make(tgbotapi.Params)
+	params["chat_id"] = strconv.FormatInt(memoryGroupID, 10)
+	params["user_id"] = strconv.FormatInt(botUserID, 10)
+
+	resp, err := bot.MakeRequest("getChatMember", params)
+	if err != nil {
+		return false, fmt.Errorf("failed to check group membership: %w", err)
+	}
+
+	// Parse the result as a ChatMember object
+	var chatMember struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(resp.Result, &chatMember); err != nil {
+		return false, fmt.Errorf("failed to parse chat member response: %w", err)
+	}
+
+	// "member", "administrator", "creator" mean the bot is in the group
+	return chatMember.Status == "member" || chatMember.Status == "administrator" || chatMember.Status == "creator", nil
+}
+
+// handleBotRemovedFromGroup sends a single alert when bot is removed and prevents spam
+func handleBotRemovedFromGroup(bot *tgbotapi.BotAPI) bool {
+	now := time.Now()
+
+	// Check if we've already sent an alert recently (debounce)
+	if !newsLastAlertTime.IsZero() && now.Sub(newsLastAlertTime) < newsAlertCooldown {
+		log.Printf("[NEWS] Bot removed from group, but already alerted %v ago - skipping duplicate alert",
+			now.Sub(newsLastAlertTime))
+		return false
+	}
+
+	// Send ONE alert to owner
+	memoryGroupID, _ := getEnvInt64("MEMORY_GROUP_ID")
+	warning := fmt.Sprintf("The bot has been removed or kicked from MEMORY_GROUP_ID (%d).\n\nThe news posting feature has been automatically disabled to prevent spam.\n\nTo re-enable, add the bot back to the group and use the /NEWS command in DM.", memoryGroupID)
+	sendOwnerWarning(bot, warning)
+
+	newsLastAlertTime = now
+	log.Printf("[NEWS] Bot removed from group - alert sent and feature disabled")
+	return true
+}
+
+// shouldDedupeWarning checks if we should skip warning due to recent alert
+func shouldDedupeWarning() bool {
+	if newsLastAlertTime.IsZero() {
+		return false
+	}
+	return time.Since(newsLastAlertTime) < newsAlertCooldown
+}
+
 // tryPostNews attempts to post a random message to the memory group
-// Errors are logged and sent to owner DM, not posted to the group
+// Errors are logged and sent to owner DM (once), not posted to the group
 func tryPostNews(bot *tgbotapi.BotAPI) {
 	if !shouldPostNewsNow(bot) {
 		return
@@ -397,11 +458,24 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 		return
 	}
 
+	// Check if bot is still in the group
+	isMember, err := isBotInGroup(bot)
+	if err != nil {
+		log.Printf("[NEWS] Error checking group membership: %v", err)
+		// Don't fail on membership check error, try to proceed
+	} else if !isMember {
+		// Bot is not in the group - handle gracefully
+		handleBotRemovedFromGroup(bot)
+		return
+	}
+
 	// Step 1: Get a random recent message
 	randomMessage, err := getRandomRecentMessage()
 	if err != nil {
 		log.Printf("[NEWS] Error getting random message: %v", err)
-		sendOwnerWarning(bot, fmt.Sprintf("Failed to get random message:\n%v", err))
+		if !shouldDedupeWarning() {
+			sendOwnerWarning(bot, fmt.Sprintf("Failed to get random message:\n%v", err))
+		}
 		return
 	}
 
@@ -409,7 +483,9 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	topic, err := extractTopicFromMessage(randomMessage)
 	if err != nil {
 		log.Printf("[NEWS] Error extracting topic: %v", err)
-		sendOwnerWarning(bot, fmt.Sprintf("Failed to extract topic from message:\n%v\n\nMessage: %.200s...", err, randomMessage))
+		if !shouldDedupeWarning() {
+			sendOwnerWarning(bot, fmt.Sprintf("Failed to extract topic from message:\n%v\n\nMessage: %.200s...", err, randomMessage))
+		}
 		return
 	}
 
@@ -417,7 +493,9 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	message, err := generateRandomMessage(topic)
 	if err != nil {
 		log.Printf("[NEWS] Error generating random message: %v", err)
-		sendOwnerWarning(bot, fmt.Sprintf("Failed to generate message for topic '%s':\n%v", topic, err))
+		if !shouldDedupeWarning() {
+			sendOwnerWarning(bot, fmt.Sprintf("Failed to generate message for topic '%s':\n%v", topic, err))
+		}
 		return
 	}
 
@@ -426,7 +504,15 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	sentMsg, err := sendMessageWithSplit(bot, msg)
 	if err != nil {
 		log.Printf("[NEWS] Error sending message: %v", err)
-		sendOwnerWarning(bot, fmt.Sprintf("Failed to send message to group:\n%v", err))
+
+		// Check if this is a "bot not in group" error
+		if strings.Contains(err.Error(), "bot was kicked") ||
+			strings.Contains(err.Error(), "Forbidden") ||
+			strings.Contains(err.Error(), "chat not found") {
+			handleBotRemovedFromGroup(bot)
+		} else if !shouldDedupeWarning() {
+			sendOwnerWarning(bot, fmt.Sprintf("Failed to send message to group:\n%v", err))
+		}
 		return
 	}
 
@@ -477,4 +563,11 @@ func stopNewsScheduler() {
 		newsScheduler.Stop()
 		log.Printf("[NEWS] News scheduler stopped")
 	}
+}
+
+// resetNewsFeature resets the alert state, allowing the feature to work again
+// This is called when the owner uses /NEWS or /NEWSSTATUS after the bot was removed
+func resetNewsFeature() {
+	newsLastAlertTime = time.Time{}
+	log.Printf("[NEWS] News feature alert state reset")
 }

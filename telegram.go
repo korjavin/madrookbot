@@ -434,6 +434,61 @@ Use "read: <text>" to convert text to speech`
 					topic, randomMessage))
 			bot.Send(debugMsg)
 
+			// Reset alert state since /NEWS was used successfully
+			resetNewsFeature()
+
+			continue
+		}
+
+		// Handle /NEWSSTATUS command (owner only, DM only) - Check feature status
+		if strings.ToUpper(text) == "/NEWSSTATUS" {
+			// Check if it's a DM (private chat)
+			if !messg.Chat.IsPrivate() {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "This command only works in direct messages.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if user is owner
+			if !isOwner(messg.From.ID) {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Only the bot owner can use this command.")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Check if memory group is set
+			if os.Getenv("MEMORY_GROUP_ID") == "" {
+				msg := tgbotapi.NewMessage(messg.Chat.ID, "Random message feature is not configured (MEMORY_GROUP_ID not set).")
+				msg.ReplyToMessageID = messg.MessageID
+				bot.Send(msg)
+				continue
+			}
+
+			// Build status message
+			var status string
+			if newsLastAlertTime.IsZero() {
+				status = "🟢 Active - No alerts sent"
+			} else {
+				elapsed := time.Since(newsLastAlertTime)
+				if elapsed < newsAlertCooldown {
+					status = fmt.Sprintf("🔴 Disabled - Last alert: %s ago", elapsed.Round(time.Minute))
+				} else {
+					status = "🟡 Cooldown expired - Ready to re-enable"
+				}
+			}
+
+			schedulerStatus := "Running"
+			if newsScheduler == nil {
+				schedulerStatus = "Stopped"
+			}
+
+			msg := tgbotapi.NewMessage(messg.Chat.ID,
+				fmt.Sprintf("📊 News Feature Status\n\nStatus: %s\nScheduler: %s\n\nUse /NEWS to test and re-enable the feature.",
+					status, schedulerStatus))
+			msg.ReplyToMessageID = messg.MessageID
+			bot.Send(msg)
 			continue
 		}
 
