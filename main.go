@@ -59,7 +59,9 @@ func main() {
 		stopNewsScheduler()
 		SaveConversationsOnShutdown()
 		if db != nil {
-			db.Close()
+			if err := db.Close(); err != nil {
+				log.Printf("[ERROR] Error closing database: %v", err)
+			}
 		}
 		os.Exit(0)
 	}()

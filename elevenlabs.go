@@ -74,7 +74,7 @@ func initElevenLabs() {
 			log.Printf("[ERROR] %v", elevenLabsInitErr)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			elevenLabsInitErr = fmt.Errorf("API returned status %d", resp.StatusCode)
@@ -144,7 +144,7 @@ func makeSpeech(text string) io.ReadCloser {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		log.Printf("[ERROR] API returned status %d: %s", resp.StatusCode, string(body))
 		return nil
 	}

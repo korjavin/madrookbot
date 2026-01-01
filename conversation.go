@@ -242,7 +242,7 @@ func saveConversationsToDatabase() error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Clear existing data (we'll save the entire current state)
 	_, err = tx.Exec("DELETE FROM conversation_messages")
@@ -257,7 +257,7 @@ func saveConversationsToDatabase() error {
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	count := 0
 	for _, node := range conversationCache.nodes {
@@ -300,7 +300,7 @@ func loadConversationsFromDatabase() error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	count := 0
 	totalBytes := 0

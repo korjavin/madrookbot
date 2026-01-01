@@ -108,7 +108,7 @@ func getGroupActivityStats(groupID int64, days int) (*ActivityStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Aggregate by user
 	userDataMap := make(map[string]*UserActivitySummary)

@@ -14,7 +14,7 @@ func handleStatCommand(bot *tgbotapi.BotAPI, messg *tgbotapi.Message) {
 	if !messg.Chat.IsGroup() && !messg.Chat.IsSuperGroup() {
 		msg := tgbotapi.NewMessage(messg.Chat.ID, "This command only works in groups.")
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 
@@ -24,14 +24,14 @@ func handleStatCommand(bot *tgbotapi.BotAPI, messg *tgbotapi.Message) {
 		log.Printf("[ERROR] Failed to check authorization: %v", err)
 		msg := tgbotapi.NewMessage(messg.Chat.ID, "Failed to verify permissions.")
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 
 	if !isAuthorized {
 		msg := tgbotapi.NewMessage(messg.Chat.ID, "This command is only available to group admins and bot owner.")
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 
@@ -40,14 +40,14 @@ func handleStatCommand(bot *tgbotapi.BotAPI, messg *tgbotapi.Message) {
 	if err != nil {
 		msg := tgbotapi.NewMessage(messg.Chat.ID, fmt.Sprintf("⏱️ Rate limit: %v", err))
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 
 	if !allowed {
 		msg := tgbotapi.NewMessage(messg.Chat.ID, "⏱️ Please wait before running /stat again.")
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 
@@ -57,14 +57,14 @@ func handleStatCommand(bot *tgbotapi.BotAPI, messg *tgbotapi.Message) {
 		log.Printf("[ERROR] Failed to get activity stats: %v", err)
 		msg := tgbotapi.NewMessage(messg.Chat.ID, "Failed to retrieve statistics.")
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 
 	if len(stats.UserStats) == 0 {
 		msg := tgbotapi.NewMessage(messg.Chat.ID, "No activity data available for the last 7 days.")
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 
@@ -74,7 +74,7 @@ func handleStatCommand(bot *tgbotapi.BotAPI, messg *tgbotapi.Message) {
 		log.Printf("[ERROR] Failed to generate chart: %v", err)
 		msg := tgbotapi.NewMessage(messg.Chat.ID, "Failed to generate chart.")
 		msg.ReplyToMessageID = messg.MessageID
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		return
 	}
 

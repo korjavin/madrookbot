@@ -93,7 +93,7 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Failed to open input file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	byteValue, err := io.ReadAll(file)
 	if err != nil {
@@ -146,7 +146,7 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Failed to create Qdrant client: %v", err)
 	}
-	defer qdrantClient.Close()
+	defer func() { _ = qdrantClient.Close() }()
 
 	// Ensure collection exists
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

@@ -251,5 +251,7 @@ func markClassConducted(class *Class) {
 	log.Printf("[CLASS] Class ID=%d marked as conducted", class.ID)
 
 	// Cleanup old classes
-	cleanupOldClasses()
+	if err := cleanupOldClasses(); err != nil {
+		log.Printf("[ERROR] Failed to cleanup old classes: %v", err)
+	}
 }
