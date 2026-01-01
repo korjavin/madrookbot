@@ -461,8 +461,15 @@ func tryPostNews(bot *tgbotapi.BotAPI) {
 	// Check if bot is still in the group
 	isMember, err := isBotInGroup(bot)
 	if err != nil {
+		// Check if this is a "chat not found" error - this means the bot is definitively not in the group
+		if strings.Contains(err.Error(), "chat not found") ||
+			strings.Contains(err.Error(), "Bad Request") {
+			log.Printf("[NEWS] Chat not found - bot is not in the group, stopping news feature")
+			handleBotRemovedFromGroup(bot)
+			return
+		}
+		// For other errors, log and try to proceed
 		log.Printf("[NEWS] Error checking group membership: %v", err)
-		// Don't fail on membership check error, try to proceed
 	} else if !isMember {
 		// Bot is not in the group - handle gracefully
 		handleBotRemovedFromGroup(bot)
