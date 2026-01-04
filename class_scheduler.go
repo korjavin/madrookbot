@@ -72,6 +72,14 @@ func processClassSchedule() {
 		return
 	}
 
+	// Task: Send 3-day notification for questions (3 days before class)
+	notificationTime := class.ScheduledTime.Add(-72 * time.Hour)
+	if !class.QuestionsRequested && nowBerlin.After(notificationTime) {
+		log.Printf("[CLASS] Time to send questions request for class ID=%d", class.ID)
+		requestQuestionsAndLink(class)
+		return
+	}
+
 	// Task 2: Send 6-hour reminder (Sunday 13:00 Berlin)
 	reminder6hTime := class.ScheduledTime.Add(-6 * time.Hour)
 	if !class.Reminder6hSent && nowBerlin.After(reminder6hTime) {
@@ -252,4 +260,41 @@ func markClassConducted(class *Class) {
 
 	// Cleanup old classes
 	cleanupOldClasses()
+}
+
+// requestQuestionsAndLink sends a message requesting questions and link from the owner
+func requestQuestionsAndLink(class *Class) {
+	groupID, err := getClassGroupID()
+	if err != nil {
+		log.Printf("[ERROR] Failed to get class group ID: %v", err)
+		return
+	}
+
+	ownerID, err := getOwnerID()
+	if err != nil {
+		log.Printf("[ERROR] Failed to get owner ID: %v", err)
+		return
+	}
+
+	messageText, err := generateQuestionsRequest(class, ownerID)
+	if err != nil {
+		log.Printf("[ERROR] Failed to generate questions request: %v", err)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(groupID, messageText)
+	msg.ParseMode = "Markdown"
+
+	sentMsg, err := classBot.Send(msg)
+	if err != nil {
+		log.Printf("[ERROR] Failed to send questions request: %v", err)
+		return
+	}
+
+	log.Printf("[CLASS] Questions request sent, messageID=%d", sentMsg.MessageID)
+
+	err = updateClassQuestionsRequestSent(class.ID, sentMsg.MessageID)
+	if err != nil {
+		log.Printf("[ERROR] Failed to update questions request status: %v", err)
+	}
 }

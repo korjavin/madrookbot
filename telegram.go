@@ -686,6 +686,32 @@ Use "read: <text>" to convert text to speech`
 		}
 
 		// Handle replies to bot messages (conversation threading)
+		if messg.ReplyToMessage != nil && messg.ReplyToMessage.From.ID == bot.Self.ID {
+			// Check if this is a reply to a class questions request
+			repliedMsgID := messg.ReplyToMessage.MessageID
+			targetClass, err := getClassByQuestionsRequestMessageID(repliedMsgID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to check for class questions request: %v", err)
+			}
+
+			if targetClass != nil {
+				// This IS a reply to our request!
+				if isOwner(messg.From.ID) {
+					log.Printf("[CLASS] Received owner reply to questions request for class ID=%d. Pinning...", targetClass.ID)
+					err := pinMessage(bot, messg.Chat.ID, messg.MessageID)
+					if err != nil {
+						log.Printf("[ERROR] Failed to pin questions reply: %v", err)
+					} else {
+						ack := tgbotapi.NewMessage(messg.Chat.ID, "✅ Pinned! Thanks for the questions/link.")
+						ack.ReplyToMessageID = messg.MessageID
+						bot.Send(ack)
+					}
+					// Stop further processing for this message
+					continue
+				}
+			}
+		}
+
 		if client != nil && messg.ReplyToMessage != nil && messg.ReplyToMessage.From.ID == bot.Self.ID {
 			// User is replying to a bot message - check if it's part of a conversation
 			parentMessageID := messg.ReplyToMessage.MessageID

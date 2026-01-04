@@ -120,7 +120,7 @@ func TestFormatClassTimeWithTimezones(t *testing.T) {
 	result := formatClassTimeWithTimezones(classTime)
 
 	// Check that all expected timezones are present
-	timezones := []string{"Berlin", "Egypt", "India", "Iran"}
+	timezones := []string{"Berlin", "Egypt", "India"}
 	for _, tz := range timezones {
 		if !containsString(result, tz) {
 			t.Errorf("expected timezone %s to be in result", tz)

@@ -9,17 +9,19 @@ import (
 
 // Class represents a scheduled class
 type Class struct {
-	ID                    int
-	Description           string
-	ScheduledTime         time.Time
-	AnnouncementMessageID int
-	AnnouncementPosted    bool
-	Reminder6hSent        bool
-	Reminder1hSent        bool
-	Unpinned              bool
-	Conducted             bool
-	CreatedAt             time.Time
-	Cancelled             bool
+	ID                        int
+	Description               string
+	ScheduledTime             time.Time
+	AnnouncementMessageID     int
+	AnnouncementPosted        bool
+	Reminder6hSent            bool
+	Reminder1hSent            bool
+	Unpinned                  bool
+	Conducted                 bool
+	CreatedAt                 time.Time
+	Cancelled                 bool
+	QuestionsRequested        bool
+	QuestionsRequestMessageID int
 }
 
 // isColumnExistsError checks if the error is due to column already existing
@@ -58,6 +60,24 @@ func initClassesTable() error {
 	_, err = db.Exec(migrationQuery)
 	if err != nil && !isColumnExistsError(err) {
 		return fmt.Errorf("failed to add conducted column: %v", err)
+	}
+
+	// Add questions_requested column if it doesn't exist
+	migrationQuery2 := `
+		ALTER TABLE classes ADD COLUMN questions_requested BOOLEAN DEFAULT 0
+	`
+	_, err = db.Exec(migrationQuery2)
+	if err != nil && !isColumnExistsError(err) {
+		return fmt.Errorf("failed to add questions_requested column: %v", err)
+	}
+
+	// Add questions_request_message_id column if it doesn't exist
+	migrationQuery3 := `
+		ALTER TABLE classes ADD COLUMN questions_request_message_id INTEGER DEFAULT 0
+	`
+	_, err = db.Exec(migrationQuery3)
+	if err != nil && !isColumnExistsError(err) {
+		return fmt.Errorf("failed to add questions_request_message_id column: %v", err)
 	}
 
 	// Create RSVPs table
@@ -150,10 +170,11 @@ func getActiveClass() (*Class, error) {
 	query := `
 		SELECT id, description, scheduled_time, announcement_message_id,
 		       announcement_posted, reminder_6h_sent, reminder_1h_sent,
-		       unpinned, conducted, created_at, cancelled
+		       unpinned, conducted, created_at, cancelled,
+		       questions_requested, questions_request_message_id
 		FROM classes
 		WHERE cancelled = 0 AND conducted = 0
-		ORDER BY scheduled_time DESC
+		ORDER BY scheduled_time ASC
 		LIMIT 1
 	`
 
@@ -170,6 +191,8 @@ func getActiveClass() (*Class, error) {
 		&class.Conducted,
 		&class.CreatedAt,
 		&class.Cancelled,
+		&class.QuestionsRequested,
+		&class.QuestionsRequestMessageID,
 	)
 
 	if err == sql.ErrNoRows {
@@ -255,13 +278,62 @@ func updateClassConducted(classID int) error {
 	return nil
 }
 
+// updateClassQuestionsRequestSent marks the questions request as sent
+func updateClassQuestionsRequestSent(classID int, messageID int) error {
+	query := `UPDATE classes SET questions_requested = 1, questions_request_message_id = ? WHERE id = ?`
+	_, err := db.Exec(query, messageID, classID)
+	if err != nil {
+		return fmt.Errorf("failed to update questions request status: %v", err)
+	}
+
+	log.Printf("[CLASS] Marked questions request sent for class ID=%d, messageID=%d", classID, messageID)
+	return nil
+}
+
+// getClassByQuestionsRequestMessageID returns the class associated with a questions request message ID
+func getClassByQuestionsRequestMessageID(messageID int) (*Class, error) {
+	query := `
+		SELECT id, description, scheduled_time, announcement_message_id,
+		       announcement_posted, reminder_6h_sent, reminder_1h_sent,
+		       unpinned, conducted, created_at, cancelled,
+		       questions_requested, questions_request_message_id
+		FROM classes
+		WHERE questions_request_message_id = ?
+	`
+
+	var class Class
+	err := db.QueryRow(query, messageID).Scan(
+		&class.ID,
+		&class.Description,
+		&class.ScheduledTime,
+		&class.AnnouncementMessageID,
+		&class.AnnouncementPosted,
+		&class.Reminder6hSent,
+		&class.Reminder1hSent,
+		&class.Unpinned,
+		&class.Conducted,
+		&class.CreatedAt,
+		&class.Cancelled,
+		&class.QuestionsRequested,
+		&class.QuestionsRequestMessageID,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil // Not found
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get class by questions request message ID: %v", err)
+	}
+
+	return &class, nil
+}
+
 // formatClassTimeWithTimezones formats the class time in multiple timezones
 func formatClassTimeWithTimezones(classTime time.Time) string {
 	timezones := map[string]string{
 		"Berlin": "Europe/Berlin",
 		"Egypt":  "Africa/Cairo",
 		"India":  "Asia/Kolkata",
-		"Iran":   "Asia/Tehran",
 	}
 
 	var result string

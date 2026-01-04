@@ -116,7 +116,8 @@ Requirements:
 - Make people feel they'll miss out if they don't join`
 
 	userMessage := fmt.Sprintf(`Create an urgent 1-hour reminder for class "%s" starting in just 1 hour!
-This is the last reminder - make it count!`, class.Description)
+This is the last reminder - make it count!
+Include this link: https://teams.live.com/meet/9351227050956?p=U9EFHAtxX9RxPW1REt`, class.Description)
 
 	reminder, err := getGPTAnswerWithSystem(userMessage, systemPrompt)
 	if err != nil {
@@ -124,10 +125,30 @@ This is the last reminder - make it count!`, class.Description)
 		// Fallback
 		return fmt.Sprintf(`🚨 FINAL REMINDER: Class on "%s" starts in 1 HOUR!
 
+Link to join: https://teams.live.com/meet/9351227050956?p=U9EFHAtxX9RxPW1REt
+
 This is your last chance to join! See you soon! 🎓⏰`, class.Description), nil
 	}
 
 	return reminder, nil
+}
+
+// generateQuestionsRequest generates the 3-day notification requesting questions and link
+func generateQuestionsRequest(class *Class, ownerID int64) (string, error) {
+	// We'll construct a mention for the owner
+	// Note: In Telegram Markdown/HTML, mentioning by ID might be tricky if user has no username.
+	// But the bot stores username usually. We'll use the ID mention which is reliable.
+	// [Name](tg://user?id=123456789)
+
+	msg := fmt.Sprintf("Hey [Owner](tg://user?id=%d)! 👋\n\n"+
+		"The class **%s** is coming up in 3 days (Schedule: %s).\n\n"+
+		"Please reply to this message with the discussion questions and the call link. 📝🔗\n"+
+		"I'll pin your reply so everyone can see it!",
+		ownerID,
+		class.Description,
+		class.ScheduledTime.Format("Monday 15:04"),
+	)
+	return msg, nil
 }
 
 // countRSVPs counts the number of reactions on a message by querying the database
