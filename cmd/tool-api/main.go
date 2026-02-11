@@ -64,7 +64,9 @@ func main() {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "OK")
+	if _, err := fmt.Fprintf(w, "OK"); err != nil {
+		log.Printf("[ERROR] Failed to write health response: %v", err)
+	}
 }
 
 func searchHandler(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +113,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		log.Printf("[ERROR] Failed to encode response: %v", err)
 	}
 }
 

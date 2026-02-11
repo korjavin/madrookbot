@@ -6,11 +6,8 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
-	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -234,62 +231,6 @@ type GoogleNewsRSS struct {
 			Description string `xml:"description"`
 		} `xml:"item"`
 	} `xml:"channel"`
-}
-
-// searchGoogleNews searches Google News for articles related to the topic
-// Returns title, description (truncated to 2000 chars), and URL
-func searchGoogleNews(topic string) (string, string, string, error) {
-	// Google News RSS feed URL with "when:7d" parameter to limit to last 7 days
-	// Format: https://news.google.com/rss/search?q=QUERY+when:7d&hl=en-US&gl=US&ceid=US:en
-	encodedTopic := url.QueryEscape(topic + " when:7d")
-	rssURL := fmt.Sprintf("https://news.google.com/rss/search?q=%s&hl=en-US&gl=US&ceid=US:en", encodedTopic)
-
-	log.Printf("[NEWS] Searching Google News for: %s (last 7 days)", topic)
-
-	// Fetch RSS feed
-	resp, err := http.Get(rssURL)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to fetch news RSS: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", "", "", fmt.Errorf("news RSS returned status: %d", resp.StatusCode)
-	}
-
-	// Read and parse XML
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to read RSS body: %w", err)
-	}
-
-	var rss GoogleNewsRSS
-	err = xml.Unmarshal(body, &rss)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to parse RSS XML: %w", err)
-	}
-
-	if len(rss.Channel.Items) == 0 {
-		return "", "", "", fmt.Errorf("no news articles found for topic: %s", topic)
-	}
-
-	// Pick a random article from the first 5 results
-	maxItems := 5
-	if len(rss.Channel.Items) < maxItems {
-		maxItems = len(rss.Channel.Items)
-	}
-
-	randomIndex := newsRand.Intn(maxItems)
-	article := rss.Channel.Items[randomIndex]
-
-	// Truncate description to 2000 chars to avoid context overflow
-	description := article.Description
-	if len(description) > 2000 {
-		description = description[:2000] + "..."
-	}
-
-	log.Printf("[NEWS] Found news article: %s (description length: %d)", article.Title, len(description))
-	return article.Title, description, article.Link, nil
 }
 
 // generateRandomMessage generates a random message based on the topic using RANDOM_MESSAGE_PROMPT
